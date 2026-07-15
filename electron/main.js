@@ -724,7 +724,7 @@ ipcMain.handle('start-google-oauth', async (_, { clientId, clientSecret }) => {
   });
 });
 
-ipcMain.handle('synthesize-speech', async (_, { text, prompt, model, languageCode, voiceName, outputPath }) => {
+ipcMain.handle('synthesize-speech', async (_, { text, prompt, model, languageCode, voiceName, speakingRate, outputPath }) => {
   try {
     let apiKey = '';
     try {
@@ -753,7 +753,8 @@ ipcMain.handle('synthesize-speech', async (_, { text, prompt, model, languageCod
       },
       audioConfig: {
         audioEncoding: 'LINEAR16',
-        sampleRateHertz: 24000
+        sampleRateHertz: 24000,
+        speakingRate: speakingRate || 1.0
       }
     };
 
@@ -1179,7 +1180,7 @@ ipcMain.handle('concat-and-align', async (event, { tempPaths, finalOutputPath, f
         lastOut = outLabel;
       }
 
-      const ffmpegCmd = `"${FFMPEG_PATH}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" "${finalOutputPath}"`;
+      const ffmpegCmd = `"${ffmpegStatic}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" "${finalOutputPath}"`;
 
       await new Promise((resolve, reject) => {
         exec(ffmpegCmd, { encoding: 'utf-8' }, (error, stdout, stderr) => {
@@ -1439,7 +1440,7 @@ ipcMain.handle('concat-audio-only', async (event, { tempPaths, finalOutputPath }
         lastOut = outLabel;
       }
 
-      const ffmpegCmd = `"${FFMPEG_PATH}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" "${finalOutputPath}"`;
+      const ffmpegCmd = `"${ffmpegStatic}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" "${finalOutputPath}"`;
 
       await new Promise((resolve, reject) => {
         exec(ffmpegCmd, { encoding: 'utf-8' }, (error, stdout, stderr) => {

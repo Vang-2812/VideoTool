@@ -28,49 +28,256 @@ const LANGUAGES = [
     code: 'vi-VN',
     label: 'Tiếng Việt (Vietnamese)',
     voices: [
-      { id: 'Puck', label: 'Puck (Giọng Ấm, Tự nhiên)' },
-      { id: 'Charon', label: 'Charon (Giọng Nam trầm)' },
-      { id: 'Aoede', label: 'Aoede (Giọng Nữ thanh)' },
-      { id: 'Kore', label: 'Kore (Giọng Nữ sáng)' },
-      { id: 'Fenrir', label: 'Fenrir (Giọng Nam khỏe)' }
+      // Giọng Nam
+      { id: 'Charon', label: 'Charon (Giọng Nam trầm, Điềm đạm)' },
+      { id: 'Fenrir', label: 'Fenrir (Giọng Nam khỏe, Mạnh mẽ)' },
+      { id: 'Puck', label: 'Puck (Giọng Nam ấm, Tự nhiên)' },
+      { id: 'Algenib', label: 'Algenib (Giọng Nam trung)' },
+      { id: 'Alnilam', label: 'Alnilam (Giọng Nam trầm ấm)' },
+      { id: 'Orus', label: 'Orus (Giọng Nam dày)' },
+      { id: 'Achernar', label: 'Achernar (Giọng Nam dõng dạc)' },
+      { id: 'Iapetus', label: 'Iapetus (Giọng Nam nhẹ nhàng)' },
+      { id: 'Enceladus', label: 'Enceladus (Giọng Nam trẻ trung)' },
+      { id: 'Rasalgethi', label: 'Rasalgethi (Giọng Nam cuốn hút)' },
+      { id: 'Schedar', label: 'Schedar (Giọng Nam chững chạc)' },
+      { id: 'Umbriel', label: 'Umbriel (Giọng Nam ấm áp)' },
+
+      // Giọng Nữ
+      { id: 'Aoede', label: 'Aoede (Giọng Nữ thanh, Truyền cảm)' },
+      { id: 'Kore', label: 'Kore (Giọng Nữ sáng, Trong trẻo)' },
+      { id: 'Callirrhoe', label: 'Callirrhoe (Giọng Nữ năng động)' },
+      { id: 'Leda', label: 'Leda (Giọng Nữ dịu dàng)' },
+      { id: 'Zephyr', label: 'Zephyr (Giọng Nữ êm dịu, Nhẹ nhàng)' },
+      { id: 'Autonoe', label: 'Autonoe (Giọng Nữ đầm ấm)' },
+      { id: 'Laomedeia', label: 'Laomedeia (Giọng Nữ tự tin)' },
+      { id: 'Despina', label: 'Despina (Giọng Nữ trẻ trung)' },
+      { id: 'Erinome', label: 'Erinome (Giọng Nữ thanh lịch)' },
+      { id: 'Achird', label: 'Achird (Giọng Nữ dễ thương)' },
+      { id: 'Algieba', label: 'Algieba (Giọng Nữ ấm áp)' },
+      { id: 'Pulcherrima', label: 'Pulcherrima (Giọng Nữ sang trọng)' },
+      { id: 'Sadachbia', label: 'Sadachbia (Giọng Nữ tinh tế)' },
+      { id: 'Sadaltager', label: 'Sadaltager (Giọng Nữ êm ái)' },
+      { id: 'Sulafat', label: 'Sulafat (Giọng Nữ thanh thoát)' },
+      { id: 'Vindemiatrix', label: 'Vindemiatrix (Giọng Nữ trưởng thành)' }
     ]
   },
   {
     code: 'en-US',
     label: 'Tiếng Anh (English - US)',
     voices: [
-      { id: 'Puck', label: 'Puck (Warm, Natural)' },
-      { id: 'Charon', label: 'Charon (Deep Male)' },
-      { id: 'Aoede', label: 'Aoede (Clear Female)' },
-      { id: 'Kore', label: 'Kore (Bright Female)' },
-      { id: 'Fenrir', label: 'Fenrir (Strong Male)' },
-      { id: 'Callirrhoe', label: 'Callirrhoe (Energetic)' },
-      { id: 'Zephyr', label: 'Zephyr (Soothing)' }
+      // Male Voices
+      { id: 'Charon', label: 'Charon (Male - Deep & Calm)' },
+      { id: 'Fenrir', label: 'Fenrir (Male - Strong & Powerful)' },
+      { id: 'Puck', label: 'Puck (Male - Warm & Natural)' },
+      { id: 'Algenib', label: 'Algenib (Male - Balanced)' },
+      { id: 'Alnilam', label: 'Alnilam (Male - Deep & Warm)' },
+      { id: 'Orus', label: 'Orus (Male - Thick)' },
+      { id: 'Achernar', label: 'Achernar (Male - Authoritative)' },
+      { id: 'Iapetus', label: 'Iapetus (Male - Gentle)' },
+      { id: 'Enceladus', label: 'Enceladus (Male - Youthful)' },
+      { id: 'Rasalgethi', label: 'Rasalgethi (Male - Engaging)' },
+      { id: 'Schedar', label: 'Schedar (Male - Mature)' },
+      { id: 'Umbriel', label: 'Umbriel (Male - Friendly)' },
+
+      // Female Voices
+      { id: 'Aoede', label: 'Aoede (Female - Clear & Expressive)' },
+      { id: 'Kore', label: 'Kore (Female - Bright & Crisp)' },
+      { id: 'Callirrhoe', label: 'Callirrhoe (Female - Energetic)' },
+      { id: 'Leda', label: 'Leda (Female - Gentle)' },
+      { id: 'Zephyr', label: 'Zephyr (Female - Soothing)' },
+      { id: 'Autonoe', label: 'Autonoe (Female - Warm)' },
+      { id: 'Laomedeia', label: 'Laomedeia (Female - Confident)' },
+      { id: 'Despina', label: 'Despina (Female - Young)' },
+      { id: 'Erinome', label: 'Erinome (Female - Elegant)' },
+      { id: 'Achird', label: 'Achird (Female - Sweet)' },
+      { id: 'Algieba', label: 'Algieba (Female - Warm)' },
+      { id: 'Pulcherrima', label: 'Pulcherrima (Female - Sophisticated)' },
+      { id: 'Sadachbia', label: 'Sadachbia (Female - Refined)' },
+      { id: 'Sadaltager', label: 'Sadaltager (Female - Smooth)' },
+      { id: 'Sulafat', label: 'Sulafat (Female - Graceful)' },
+      { id: 'Vindemiatrix', label: 'Vindemiatrix (Female - Mature)' }
     ]
   },
   {
     code: 'en-GB',
     label: 'Tiếng Anh (English - UK)',
     voices: [
-      { id: 'Puck', label: 'Puck (British, Warm)' },
-      { id: 'Charon', label: 'Charon (British, Deep)' },
-      { id: 'Aoede', label: 'Aoede (British, Clear)' },
-      { id: 'Kore', label: 'Kore (British, Bright)' },
-      { id: 'Fenrir', label: 'Fenrir (British, Strong)' }
+      // Male Voices
+      { id: 'Charon', label: 'Charon (British Male - Deep & Calm)' },
+      { id: 'Fenrir', label: 'Fenrir (British Male - Strong & Powerful)' },
+      { id: 'Puck', label: 'Puck (British Male - Warm & Natural)' },
+      { id: 'Algenib', label: 'Algenib (British Male - Balanced)' },
+      { id: 'Alnilam', label: 'Alnilam (British Male - Deep & Warm)' },
+      { id: 'Orus', label: 'Orus (British Male - Thick)' },
+      { id: 'Achernar', label: 'Achernar (British Male - Authoritative)' },
+      { id: 'Iapetus', label: 'Iapetus (British Male - Gentle)' },
+      { id: 'Enceladus', label: 'Enceladus (British Male - Youthful)' },
+      { id: 'Rasalgethi', label: 'Rasalgethi (British Male - Engaging)' },
+      { id: 'Schedar', label: 'Schedar (British Male - Mature)' },
+      { id: 'Umbriel', label: 'Umbriel (British Male - Friendly)' },
+
+      // Female Voices
+      { id: 'Aoede', label: 'Aoede (British Female - Clear & Expressive)' },
+      { id: 'Kore', label: 'Kore (British Female - Bright & Crisp)' },
+      { id: 'Callirrhoe', label: 'Callirrhoe (British Female - Energetic)' },
+      { id: 'Leda', label: 'Leda (British Female - Gentle)' },
+      { id: 'Zephyr', label: 'Zephyr (British Female - Soothing)' },
+      { id: 'Autonoe', label: 'Autonoe (British Female - Warm)' },
+      { id: 'Laomedeia', label: 'Laomedeia (British Female - Confident)' },
+      { id: 'Despina', label: 'Despina (British Female - Young)' },
+      { id: 'Erinome', label: 'Erinome (British Female - Elegant)' },
+      { id: 'Achird', label: 'Achird (British Female - Sweet)' },
+      { id: 'Algieba', label: 'Algieba (British Female - Warm)' },
+      { id: 'Pulcherrima', label: 'Pulcherrima (British Female - Sophisticated)' },
+      { id: 'Sadachbia', label: 'Sadachbia (British Female - Refined)' },
+      { id: 'Sadaltager', label: 'Sadaltager (British Female - Smooth)' },
+      { id: 'Sulafat', label: 'Sulafat (British Female - Graceful)' },
+      { id: 'Vindemiatrix', label: 'Vindemiatrix (British Female - Mature)' }
     ]
   }
 ];
+
+interface TtsProfile {
+  id: string;
+  name: string;
+  prompt: string;
+  model: string;
+  langCode: string;
+  voiceName: string;
+  speakingRate: number;
+}
 
 interface TtsScreenProps {
   onNavigateToAligner: (audioPath: string, scriptText: string) => void;
 }
 
 export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
-  const [text, setText] = useState('');
-  const [prompt, setPrompt] = useState('Read aloud in a warm, welcoming tone.');
-  const [model, setModel] = useState('gemini-3.1-flash-tts-preview');
-  const [langCode, setLangCode] = useState('vi-VN');
-  const [voiceName, setVoiceName] = useState('vi-VN-Gemini-F');
+  const [text, setText] = useState(() => localStorage.getItem('tts_text') || '');
+  const [prompt, setPrompt] = useState(() => localStorage.getItem('tts_prompt') || 'Read aloud in a warm, welcoming tone.');
+  const [model, setModel] = useState(() => localStorage.getItem('tts_model') || 'gemini-3.1-flash-tts-preview');
+  const [langCode, setLangCode] = useState(() => localStorage.getItem('tts_langCode') || 'vi-VN');
+  const [voiceName, setVoiceName] = useState(() => localStorage.getItem('tts_voiceName') || 'Charon');
+  const [speakingRate, setSpeakingRate] = useState(() => {
+    const saved = localStorage.getItem('tts_speakingRate');
+    return saved ? parseFloat(saved) : 1.0;
+  });
+
+  const [profiles, setProfiles] = useState<TtsProfile[]>(() => {
+    const saved = localStorage.getItem('tts_profiles');
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: 'default',
+        name: 'Mặc định (Default)',
+        prompt: 'Read aloud in a warm, welcoming tone.',
+        model: 'gemini-3.1-flash-tts-preview',
+        langCode: 'vi-VN',
+        voiceName: 'Charon',
+        speakingRate: 1.0
+      },
+      {
+        id: 'deep-english-male',
+        name: 'Giọng Nam trầm ấm (English)',
+        prompt: 'Read aloud in a deep, calm, and deliberate tone with clear articulation and natural pauses.',
+        model: 'gemini-3.1-flash-tts-preview',
+        langCode: 'en-US',
+        voiceName: 'Alnilam',
+        speakingRate: 1.1
+      },
+      {
+        id: 'warm-vietnamese-female',
+        name: 'Giọng Nữ truyền cảm (Vietnamese)',
+        prompt: 'Đọc diễn cảm, ấm áp, truyền cảm hứng và tự nhiên.',
+        model: 'gemini-3.1-flash-tts-preview',
+        langCode: 'vi-VN',
+        voiceName: 'Aoede',
+        speakingRate: 1.0
+      }
+    ];
+  });
+
+  const [selectedProfileId, setSelectedProfileId] = useState(() => {
+    return localStorage.getItem('tts_selected_profile_id') || 'default';
+  });
+
+  // Persist profiles list
+  useEffect(() => {
+    localStorage.setItem('tts_profiles', JSON.stringify(profiles));
+  }, [profiles]);
+
+  // Persist selected profile ID
+  useEffect(() => {
+    localStorage.setItem('tts_selected_profile_id', selectedProfileId);
+  }, [selectedProfileId]);
+
+  const handleSelectProfile = (profileId: string) => {
+    setSelectedProfileId(profileId);
+    const prof = profiles.find(p => p.id === profileId);
+    if (prof) {
+      setPrompt(prof.prompt);
+      setModel(prof.model);
+      setLangCode(prof.langCode);
+      setVoiceName(prof.voiceName);
+      setSpeakingRate(prof.speakingRate);
+    }
+  };
+
+  const handleCreateProfile = () => {
+    const name = window.prompt('Nhập tên cho Profile mới:');
+    if (!name || !name.trim()) return;
+
+    const newProfile: TtsProfile = {
+      id: 'profile_' + Date.now(),
+      name: name.trim(),
+      prompt,
+      model,
+      langCode,
+      voiceName,
+      speakingRate
+    };
+
+    setProfiles(prev => [...prev, newProfile]);
+    setSelectedProfileId(newProfile.id);
+    alert(`Đã tạo Profile "${newProfile.name}" thành công!`);
+  };
+
+  const handleUpdateProfile = () => {
+    setProfiles(prev => prev.map(p => {
+      if (p.id === selectedProfileId) {
+        return {
+          ...p,
+          prompt,
+          model,
+          langCode,
+          voiceName,
+          speakingRate
+        };
+      }
+      return p;
+    }));
+    alert('Đã cập nhật thay đổi cho profile hiện tại!');
+  };
+
+  const handleDeleteProfile = () => {
+    if (selectedProfileId === 'default' || selectedProfileId === 'deep-english-male' || selectedProfileId === 'warm-vietnamese-female') {
+      alert('Không thể xóa các profile mẫu mặc định.');
+      return;
+    }
+    if (!window.confirm('Bạn có chắc chắn muốn xóa profile này không?')) return;
+
+    const remaining = profiles.filter(p => p.id !== selectedProfileId);
+    setProfiles(remaining);
+    // Fallback to default
+    setSelectedProfileId('default');
+    const prof = remaining.find(p => p.id === 'default') || remaining[0];
+    if (prof) {
+      setPrompt(prof.prompt);
+      setModel(prof.model);
+      setLangCode(prof.langCode);
+      setVoiceName(prof.voiceName);
+      setSpeakingRate(prof.speakingRate);
+    }
+  };
 
   // States
   const [googleKeyExists, setGoogleKeyExists] = useState(false);
@@ -90,11 +297,39 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   const [currentChunkIndex, setCurrentChunkIndex] = useState(-1);
   const [savePathState, setSavePathState] = useState('');
 
+  // Persist settings to localStorage on change
+  useEffect(() => {
+    localStorage.setItem('tts_text', text);
+  }, [text]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_prompt', prompt);
+  }, [prompt]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_model', model);
+  }, [model]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_langCode', langCode);
+  }, [langCode]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_voiceName', voiceName);
+  }, [voiceName]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_speakingRate', speakingRate.toString());
+  }, [speakingRate]);
+
   // Sync voice options when language changes
   useEffect(() => {
     const lang = LANGUAGES.find(l => l.code === langCode);
-    if (lang && lang.voices.length > 0) {
-      setVoiceName(lang.voices[0].id);
+    if (lang) {
+      const isValid = lang.voices.some(v => v.id === voiceName);
+      if (!isValid && lang.voices.length > 0) {
+        setVoiceName(lang.voices[0].id);
+      }
     }
   }, [langCode]);
 
@@ -154,6 +389,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
             model,
             languageCode: langCode,
             voiceName,
+            speakingRate,
             outputPath: tempPath
           };
           const res = await window.electronAPI.synthesizeSpeech(params);
@@ -256,6 +492,8 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   };
 
   const activeLanguage = LANGUAGES.find(l => l.code === langCode);
+  const maleVoices = activeLanguage?.voices.filter(v => v.label.startsWith('👨')) || [];
+  const femaleVoices = activeLanguage?.voices.filter(v => v.label.startsWith('👩')) || [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
@@ -266,6 +504,50 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
           <Mic className="w-4 h-4 text-primary" />
           Tạo Giọng Đọc (TTS)
         </h2>
+
+        {/* Cấu hình mẫu (Profiles) */}
+        <div className="bg-bg-dark border border-border-dark p-4 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+              <Settings className="w-3.5 h-3.5 text-accent" />
+              Cấu hình mẫu (Profile)
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleUpdateProfile}
+                title="Lưu đè cấu hình hiện tại vào Profile đang chọn"
+                className="bg-primary/10 hover:bg-primary/25 border border-primary/20 hover:border-primary/45 text-primary-light px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                Lưu đè
+              </button>
+              <button
+                onClick={handleCreateProfile}
+                title="Tạo Profile mới từ cấu hình đang hiển thị"
+                className="bg-green-500/10 hover:bg-green-500/25 border border-green-500/20 hover:border-green-500/45 text-green-400 px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                Tạo mới
+              </button>
+              {selectedProfileId !== 'default' && selectedProfileId !== 'deep-english-male' && selectedProfileId !== 'warm-vietnamese-female' && (
+                <button
+                  onClick={handleDeleteProfile}
+                  title="Xóa Profile này khỏi bộ nhớ"
+                  className="bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 hover:border-red-500/45 text-red-400 px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
+          </div>
+          <select
+            value={selectedProfileId}
+            onChange={(e) => handleSelectProfile(e.target.value)}
+            className="w-full bg-bg-panel border border-border-dark text-white rounded-lg px-2.5 py-2 text-xs outline-none focus:border-primary cursor-pointer"
+          >
+            {profiles.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
 
         {/* Text Area Input */}
         <div className="space-y-2">
@@ -357,7 +639,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
         </div>
 
         {/* Dropdowns row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="space-y-1">
             <span className="text-[10px] text-gray-500">Model</span>
             <select
@@ -391,10 +673,39 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
               onChange={(e) => setVoiceName(e.target.value)}
               className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
             >
-              {activeLanguage?.voices.map(v => (
-                <option key={v.id} value={v.id}>{v.label}</option>
-              ))}
+              {maleVoices.length > 0 && (
+                <optgroup label="Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
+                  {maleVoices.map(v => (
+                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">{v.label}</option>
+                  ))}
+                </optgroup>
+              )}
+              {femaleVoices.length > 0 && (
+                <optgroup label="Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
+                  {femaleVoices.map(v => (
+                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">{v.label}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-[10px] text-gray-500 flex justify-between items-center">
+              <span>Tốc độ</span>
+              <span className="text-primary font-bold text-xs">{speakingRate}x</span>
+            </span>
+            <div className="flex items-center h-8">
+              <input
+                type="range"
+                min="0.55"
+                max="2.0"
+                step="0.05"
+                value={speakingRate}
+                onChange={(e) => setSpeakingRate(parseFloat(e.target.value))}
+                className="w-full accent-primary bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
           </div>
         </div>
 
