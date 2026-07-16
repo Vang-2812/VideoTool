@@ -28,6 +28,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteApiKey: (service) => ipcRenderer.invoke('delete-api-key', { service }),
   startGoogleOAuth: (clientId, clientSecret) => ipcRenderer.invoke('start-google-oauth', { clientId, clientSecret }),
   synthesizeSpeech: (params) => ipcRenderer.invoke('synthesize-speech', params),
+  cancelTtsJob: () => ipcRenderer.invoke('cancel-tts-job'),
+  onTtsJobProgress: (callback) => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('tts-job-progress', listener);
+    return () => ipcRenderer.removeListener('tts-job-progress', listener);
+  },
+  selectGoogleCredentialsFile: () => ipcRenderer.invoke('select-google-credentials-file'),
+  getGoogleCredentialsStatus: () => ipcRenderer.invoke('get-google-credentials-status'),
+  validateGoogleCredentials: () => ipcRenderer.invoke('validate-google-credentials'),
+  clearGoogleCredentials: () => ipcRenderer.invoke('clear-google-credentials'),
+  getGoogleAuthStatus: () => ipcRenderer.invoke('get-google-auth-status'),
   generateTtsAndSrt: (params) => ipcRenderer.invoke('generate-tts-srt', params),
   concatAndAlign: (params) => ipcRenderer.invoke('concat-and-align', params),
   concatAudioOnly: (params) => ipcRenderer.invoke('concat-audio-only', params),

@@ -131,6 +131,50 @@ declare global {
     vertical_overlap_seconds?: number;
   }
 
+  type TtsMode = 'stable' | 'expressive';
+  type TtsEngine = 'chirp-streaming' | 'chirp-rest' | 'neural2-rest' | 'gemini-rest';
+
+  interface TtsJobRequest {
+    mode: TtsMode;
+    text: string;
+    prompt?: string;
+    modelName?: string;
+    languageCode: string;
+    speaker: string;
+    voiceName: string;
+    speakingRate: number;
+    outputPath: string;
+    outputFormat: 'wav' | 'mp3';
+  }
+
+  interface TtsJobResult {
+    success: boolean;
+    cancelled?: boolean;
+    outputPath?: string;
+    engine?: TtsEngine;
+    modelName?: string;
+    voiceName?: string;
+    fallbackReason?: string;
+    error?: string;
+  }
+
+  interface TtsJobProgress {
+    phase: 'validating' | 'streaming' | 'synthesizing' | 'retrying' | 'fallback' | 'encoding';
+    progress: number;
+    engine: TtsEngine;
+    message?: string;
+  }
+
+  interface GoogleAuthStatus {
+    connected: boolean;
+  }
+
+  interface GoogleCredentialsStatus {
+    status: 'valid' | 'invalid' | 'not-configured';
+    path: string;
+    error?: string;
+  }
+
   interface ElectronAPI {
     selectDirectory: () => Promise<ImportResult | null>;
     renderVideo: (settings: RenderSettings) => Promise<{ success: boolean; error?: string }>;
@@ -156,14 +200,14 @@ declare global {
     saveApiKey: (service: 'google' | 'openai', key: string) => Promise<{ success: boolean; error?: string }>;
     getApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; key: string; error?: string }>;
     deleteApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; error?: string }>;
-    synthesizeSpeech: (params: {
-      text: string;
-      prompt?: string;
-      model: string;
-      languageCode: string;
-      voiceName: string;
-      outputPath: string;
-    }) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
+    synthesizeSpeech: (request: TtsJobRequest) => Promise<TtsJobResult>;
+    cancelTtsJob: () => Promise<{ success: boolean }>;
+    onTtsJobProgress: (callback: (payload: TtsJobProgress) => void) => () => void;
+    getGoogleAuthStatus: () => Promise<GoogleAuthStatus>;
+    selectGoogleCredentialsFile: () => Promise<GoogleCredentialsStatus>;
+    getGoogleCredentialsStatus: () => Promise<GoogleCredentialsStatus>;
+    validateGoogleCredentials: () => Promise<GoogleCredentialsStatus>;
+    clearGoogleCredentials: () => Promise<{ success: boolean }>;
     concatAudioOnly: (params: {
       tempPaths: string[];
       finalOutputPath: string;

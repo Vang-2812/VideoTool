@@ -10,10 +10,21 @@ import { alignScriptAndWhisper } from './whisperAligner.js';
 import { parseStoryboardDirectory } from './fileParser.js';
 import { renderStoryboardToVideo, cancelActiveRender } from './videoRenderer.js';
 import { readAudioDuration } from './audioMetadata.js';
-import { GoogleAuth, OAuth2Client } from 'google-auth-library';
+import { OAuth2Client } from 'google-auth-library';
 import { convertToVertical, getVideoDuration } from './verticalConverter.js';
 import { convertToVerticalBatch, cancelVerticalBatch } from './verticalBatchConverter.js';
 import http from 'http';
+import { createPcmFileSink, finalizePcmOutput } from './tts/audioAssembler.js';
+import { createChirpClient, synthesizeChirpStreaming } from './tts/chirpStreamingAdapter.js';
+import {
+  createCredentialPathStore,
+  createRestAccessToken,
+  readServiceAccount,
+  redactGoogleError,
+  validateServiceAccount
+} from './tts/googleCredentials.js';
+import { synthesizeGoogleRest } from './tts/googleRestAdapter.js';
+import { createTtsJobOrchestrator } from './tts/ttsJobOrchestrator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -50,6 +61,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  initializeTtsJobOrchestrator();
+
   // Register media:// protocol handler to serve local files securely
   protocol.handle('media', (request) => {
     try {
@@ -614,6 +627,85 @@ ipcMain.handle('cancel-batch-export', async () => {
 const CONFIG_DIR = path.join(app.getPath('userData'), 'Config');
 const API_KEY_FILE = path.join(CONFIG_DIR, 'gcts.key');
 const OPENAI_KEY_FILE = path.join(CONFIG_DIR, 'openai.key');
+const credentialPathStore = createCredentialPathStore({
+  settingsPath: path.join(CONFIG_DIR, 'tts-settings.json')
+});
+const activeTtsJobs = new Map();
+let ttsJobOrchestrator = null;
+
+async function readEncryptedGoogleAuth() {
+  const stored = await fs.readFile(API_KEY_FILE);
+  return safeStorage?.isEncryptionAvailable()
+    ? safeStorage.decryptString(stored)
+    : stored.toString('utf8');
+}
+
+async function readAnyGoogleAuth() {
+  try {
+    return await readEncryptedGoogleAuth();
+  } catch {
+    const credentialsPath = await credentialPathStore.load();
+    if (!credentialsPath) {
+      throw new Error('Google Cloud authentication is not configured.');
+    }
+    return JSON.stringify(await readServiceAccount(credentialsPath));
+  }
+}
+
+function initializeTtsJobOrchestrator() {
+  if (ttsJobOrchestrator) return ttsJobOrchestrator;
+
+  ttsJobOrchestrator = createTtsJobOrchestrator({
+    hasStreamingCredentials: async () => Boolean(await credentialPathStore.load()),
+    createAttempt: async (engine) => {
+      const attemptDir = await fs.mkdtemp(
+        path.join(app.getPath('temp'), `tts-${engine}-`)
+      );
+      const pcmPath = path.join(attemptDir, 'audio.pcm');
+      const sink = await createPcmFileSink(pcmPath);
+      return {
+        sink,
+        pcmPath,
+        close: () => sink.close(),
+        remove: () => fs.rm(attemptDir, { recursive: true, force: true })
+      };
+    },
+    stream: async (options) => {
+      const credentialsPath = await credentialPathStore.load();
+      const credentials = await readServiceAccount(credentialsPath);
+      return synthesizeChirpStreaming({ ...options, credentials });
+    },
+    rest: async (options) => synthesizeGoogleRest({
+      ...options,
+      fetchImpl: fetch,
+      tokenProvider: async () => createRestAccessToken(await readAnyGoogleAuth())
+    }),
+    finalize: async (options) => finalizePcmOutput({
+      ...options,
+      ffmpegPath: ffmpegStatic
+    }),
+    redactError: redactGoogleError
+  });
+  return ttsJobOrchestrator;
+}
+
+async function runTtsJob(event, request) {
+  const jobKey = event.sender.id;
+  activeTtsJobs.get(jobKey)?.abort();
+  const controller = new AbortController();
+  activeTtsJobs.set(jobKey, controller);
+
+  try {
+    return await initializeTtsJobOrchestrator().run(request, {
+      signal: controller.signal,
+      onProgress: (payload) => event.sender.send('tts-job-progress', payload)
+    });
+  } finally {
+    if (activeTtsJobs.get(jobKey) === controller) {
+      activeTtsJobs.delete(jobKey);
+    }
+  }
+}
 
 async function ensureConfigDir() {
   await fs.mkdir(CONFIG_DIR, { recursive: true });
@@ -724,121 +816,75 @@ ipcMain.handle('start-google-oauth', async (_, { clientId, clientSecret }) => {
   });
 });
 
-ipcMain.handle('synthesize-speech', async (_, { text, prompt, model, languageCode, voiceName, speakingRate, outputPath }) => {
+ipcMain.handle('synthesize-speech', runTtsJob);
+
+ipcMain.handle('cancel-tts-job', async (event) => {
+  const controller = activeTtsJobs.get(event.sender.id);
+  controller?.abort();
+  return { success: Boolean(controller) };
+});
+
+ipcMain.handle('select-google-credentials-file', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Google credentials', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePaths[0]) {
+    return { status: 'not-configured', path: '' };
+  }
+
+  const credentialPath = result.filePaths[0];
   try {
-    let apiKey = '';
-    try {
-      if (safeStorage && safeStorage.isEncryptionAvailable()) {
-        const encrypted = await fs.readFile(API_KEY_FILE);
-        apiKey = safeStorage.decryptString(encrypted);
-      } else {
-        apiKey = await fs.readFile(API_KEY_FILE, 'utf-8');
-      }
-    } catch {
-      return { success: false, error: 'Chưa cấu hình API Key trong Settings (V-1).' };
-    }
-
-    if (!apiKey) {
-      return { success: false, error: 'Chưa cấu hình API Key trong Settings (V-1).' };
-    }
-
-    const payload = {
-      input: {
-        text: text
-      },
-      voice: {
-        modelName: model,
-        languageCode: languageCode,
-        name: voiceName
-      },
-      audioConfig: {
-        audioEncoding: 'LINEAR16',
-        sampleRateHertz: 24000,
-        speakingRate: speakingRate || 1.0
-      }
+    const validation = await validateServiceAccount(credentialPath, {
+      clientFactory: createChirpClient
+    });
+    await credentialPathStore.save(credentialPath);
+    return validation;
+  } catch (error) {
+    return {
+      status: 'invalid',
+      path: credentialPath,
+      error: redactGoogleError(error)
     };
+  }
+});
 
-    if (prompt && prompt.trim()) {
-      payload.input.prompt = prompt.trim();
-    }
+async function getGoogleCredentialsStatus() {
+  const credentialPath = await credentialPathStore.load();
+  if (!credentialPath) return { status: 'not-configured', path: '' };
 
-    let authClient, accessToken;
-    try {
-      const credentials = JSON.parse(apiKey);
-      if (credentials.clientId && credentials.clientSecret && credentials.refreshToken) {
-        // OAuth 2.0 flow
-        authClient = new OAuth2Client(credentials.clientId, credentials.clientSecret);
-        authClient.setCredentials({ refresh_token: credentials.refreshToken });
-        const tokenResponse = await authClient.getAccessToken();
-        accessToken = tokenResponse.token || tokenResponse;
-      } else {
-        // Fallback for Service Account JSON
-        const auth = new GoogleAuth({
-          credentials,
-          scopes: ['https://www.googleapis.com/auth/cloud-platform']
-        });
-        authClient = await auth.getClient();
-        const tokenResponse = await authClient.getAccessToken();
-        accessToken = tokenResponse.token || tokenResponse;
-      }
-
-      if (typeof accessToken === 'object' && accessToken.token) accessToken = accessToken.token;
-    } catch (parseError) {
-      console.error('Failed to parse Google Auth JSON:', parseError);
-      return { success: false, error: 'Thông tin xác thực Google bị lỗi. Vui lòng kết nối lại trong Settings.' };
-    }
-
-    const url = `https://texttospeech.googleapis.com/v1/text:synthesize`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(payload)
+  try {
+    return await validateServiceAccount(credentialPath, {
+      clientFactory: createChirpClient
     });
+  } catch (error) {
+    return {
+      status: 'invalid',
+      path: credentialPath,
+      error: redactGoogleError(error)
+    };
+  }
+}
 
-    const data = await response.json();
+ipcMain.handle('get-google-credentials-status', getGoogleCredentialsStatus);
+ipcMain.handle('validate-google-credentials', getGoogleCredentialsStatus);
 
-    if (!response.ok) {
-      const errMessage = data.error?.message || `HTTP error ${response.status}`;
-      return { success: false, error: `Google API Error: ${errMessage}` };
-    }
+ipcMain.handle('clear-google-credentials', async () => {
+  await credentialPathStore.clear();
+  return { success: true };
+});
 
-    if (!data.audioContent) {
-      return { success: false, error: 'Phản hồi từ Google không chứa nội dung âm thanh.' };
-    }
-
-    const pcmBuffer = Buffer.from(data.audioContent, 'base64');
-    await fs.mkdir(path.dirname(outputPath), { recursive: true });
-
-    const ffmpegProcess = spawn(ffmpegStatic, [
-      '-f', 's16le',
-      '-ar', '24000',
-      '-ac', '1',
-      '-i', 'pipe:0',
-      '-y',
-      '-c:a', 'libmp3lame',
-      '-q:a', '2',
-      outputPath
-    ]);
-
-    ffmpegProcess.stdin.write(pcmBuffer);
-    ffmpegProcess.stdin.end();
-
-    await new Promise((resolve, reject) => {
-      ffmpegProcess.on('close', (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`FFmpeg exited with code ${code}`));
-      });
-      ffmpegProcess.on('error', reject);
-    });
-
-    return { success: true, outputPath };
-
-  } catch (err) {
-    console.error('Synthesize speech error:', err);
-    return { success: false, error: err.message || 'Lỗi hệ thống khi tổng hợp giọng nói.' };
+ipcMain.handle('get-google-auth-status', async () => {
+  try {
+    const serializedAuth = await readEncryptedGoogleAuth();
+    const value = JSON.parse(serializedAuth);
+    return {
+      connected: Boolean(
+        value.refreshToken || (value.client_email && value.private_key)
+      )
+    };
+  } catch {
+    return { connected: false };
   }
 });
 
@@ -1103,13 +1149,17 @@ function formatSrtTime(seconds) {
 
 ipcMain.handle('generate-tts-srt', async (event, { text, prompt, model, languageCode, voiceName, outputPath, useCloud }) => {
   try {
-    const ttsResult = await ipcMain.handlers['synthesize-speech'](event, {
+    const ttsResult = await runTtsJob(event, {
+      mode: 'expressive',
       text,
       prompt,
-      model,
+      modelName: model,
       languageCode,
+      speaker: voiceName,
       voiceName,
-      outputPath
+      speakingRate: 1,
+      outputPath,
+      outputFormat: path.extname(outputPath).toLowerCase() === '.wav' ? 'wav' : 'mp3'
     });
 
     if (!ttsResult.success) {
@@ -1180,7 +1230,7 @@ ipcMain.handle('concat-and-align', async (event, { tempPaths, finalOutputPath, f
         lastOut = outLabel;
       }
 
-      const ffmpegCmd = `"${ffmpegStatic}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" "${finalOutputPath}"`;
+      const ffmpegCmd = `"${ffmpegStatic}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" -c:a libmp3lame -b:a 256k "${finalOutputPath}"`;
 
       await new Promise((resolve, reject) => {
         exec(ffmpegCmd, { encoding: 'utf-8' }, (error, stdout, stderr) => {
@@ -1440,7 +1490,7 @@ ipcMain.handle('concat-audio-only', async (event, { tempPaths, finalOutputPath }
         lastOut = outLabel;
       }
 
-      const ffmpegCmd = `"${ffmpegStatic}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" "${finalOutputPath}"`;
+      const ffmpegCmd = `"${ffmpegStatic}" -y ${inputs}-filter_complex "${filter}" -map "${lastOut}" -c:a libmp3lame -b:a 256k "${finalOutputPath}"`;
 
       await new Promise((resolve, reject) => {
         exec(ffmpegCmd, { encoding: 'utf-8' }, (error, stdout, stderr) => {
