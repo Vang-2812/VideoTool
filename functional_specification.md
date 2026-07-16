@@ -1,7 +1,7 @@
 # ĐẶC TẢ CHỨC NĂNG HỆ THỐNG (FUNCTIONAL SPECIFICATION DOCUMENT)
-## Dự án: Storyboard-to-Video Tool (Phiên bản v1.0 → v1.8)
+## Dự án: Storyboard-to-Video Tool (Phiên bản v1.0 → v1.9)
 
-Tài liệu này tổng hợp toàn bộ các tính năng, luồng nghiệp vụ và quy tắc nghiệp vụ của ứng dụng Storyboard-to-Video Tool tính đến phiên bản v1.8 hiện tại.
+Tài liệu này tổng hợp toàn bộ các tính năng, luồng nghiệp vụ và quy tắc nghiệp vụ của ứng dụng Storyboard-to-Video Tool tính đến phiên bản v1.9 hiện tại.
 
 ---
 
@@ -54,9 +54,14 @@ Hỗ trợ 4 preset xuất chuẩn và 1 tùy chọn tùy chỉnh:
 Hai module này được tách biệt độc lập từ phiên bản v1.7 để tối ưu tốc độ xử lý và cải thiện trải nghiệm người dùng.
 
 ### 4.1. Tạo Giọng Đọc (TTS Module)
-*   **Nhập Script**: Khung soạn thảo kịch bản lớn, hỗ trợ tự động chunking chia nhỏ văn bản đối với các kịch bản dài để tránh giới hạn API.
-*   **Giọng đọc**: Tích hợp Google Cloud TTS (yêu cầu API Key/OAuth) và OpenAI Cloud TTS hỗ trợ nhiều giọng đọc AI đa ngôn ngữ chuẩn quốc tế.
-*   **Kết nối nhanh sang Aligner**: Sau khi tổng hợp tiếng thành công thành tệp MP3, hệ thống cung cấp nút chuyển hướng nhanh, tự động nạp sẵn tệp Audio và Script văn bản vừa tạo sang tab Aligner.
+*   **Chế độ Stable mặc định**: Ngôn ngữ mặc định là `en-US`, model/voice mặc định là `en-US-Chirp3-HD-Charon`. Chế độ này ưu tiên tính nhất quán về voice identity, giới tính, âm sắc và tốc độ cho script dài.
+*   **Chế độ Expressive / Experimental**: Giữ lại các model Gemini TTS hiện có và style prompt cho nội dung cần biểu cảm. Các profile Gemini cũ được tự động di chuyển vào chế độ này; giao diện cảnh báo giọng có thể thay đổi nhẹ giữa lần chạy hoặc phân đoạn.
+*   **Chunking theo provider**: Script được chia tại biên câu/từ theo giới hạn UTF-8 của từng API; không cắt giữa Unicode code point hoặc giữa một từ. Renderer chỉ hiển thị preview, còn toàn bộ quá trình tổng hợp chạy dưới dạng một job trong Main process.
+*   **Streaming tùy chọn**: Khi người dùng chọn service-account JSON hợp lệ trong Settings, Stable dùng Chirp 3 HD bidirectional streaming để giữ một voice session xuyên suốt script. Ứng dụng chỉ lưu đường dẫn file credential; nội dung private key không đi qua renderer.
+*   **Fallback toàn-job**: Stable thử theo thứ tự `Chirp streaming` (tối đa hai attempt) → `Chirp REST` → `Neural2`. Mỗi lần fallback xóa PCM của attempt trước và chạy lại toàn bộ script, vì vậy một output không trộn engine/model/voice.
+*   **Audio lossless trung gian**: Mọi adapter tạo mono 24 kHz 16-bit PCM. `LINEAR16` REST được bóc WAV container trước khi nối; không dùng crossfade hay chèn silence cố định. WAV được đóng một header duy nhất, còn MP3 chỉ encode một lần ở cuối với 256 kbps.
+*   **Tiến trình và hủy**: UI hiển thị phase, engine, phần trăm, lý do retry/fallback và cho phép hủy job. Attempt tạm và output `.partial` được dọn khi lỗi hoặc hủy.
+*   **Đầu ra**: Hỗ trợ WAV và MP3, hiển thị engine/model/voice thực tế cùng lý do fallback. Cả hai định dạng đều có thể phát, lưu và chuyển trực tiếp sang Aligner.
 
 ### 4.2. Tạo Phụ Đề (Forced Aligner Module)
 *   **Nguồn nạp**: Nhận tệp Audio (MP3/WAV) và Script kịch bản (văn bản text). Có tùy chọn tự động nhận diện phụ đề không cần nạp script.
