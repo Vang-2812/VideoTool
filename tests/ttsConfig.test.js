@@ -33,6 +33,7 @@ test('validates Gemini prompt byte budget independently', () => {
     text: 'hello',
     prompt: 'x'.repeat(4000),
     languageCode: 'en-US',
+    speaker: 'Charon',
     voiceName: 'Charon',
     modelName: 'gemini-3.1-flash-tts-preview',
     speakingRate: 1,
@@ -54,4 +55,21 @@ test('accepts a complete Stable job request', () => {
     outputPath: 'C:/tmp/voice.mp3',
     outputFormat: 'mp3'
   }), { ok: true });
+});
+
+test('rejects an incomplete Expressive IPC request before calling Google', () => {
+  const result = validateTtsJobRequest({
+    mode: 'expressive',
+    text: 'Hello.',
+    prompt: 'Warm',
+    languageCode: 'en-US',
+    speaker: 'Charon',
+    voiceName: '',
+    speakingRate: 1,
+    outputPath: 'C:/tmp/voice.mp3',
+    outputFormat: 'mp3'
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.error, /model|voice/i);
 });

@@ -21,6 +21,10 @@ export interface TtsJobRequestLike {
   mode: TtsMode;
   text: string;
   prompt?: string;
+  modelName?: string;
+  languageCode: string;
+  speaker: string;
+  voiceName: string;
   outputPath: string;
   outputFormat: TtsOutputFormat;
   speakingRate: number;

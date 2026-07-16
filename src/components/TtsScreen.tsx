@@ -341,6 +341,9 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   const [result, setResult] = useState<TtsJobResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<TtsJobProgress | null>(null);
+  const resultOutputFormat = result?.outputPath?.toLowerCase().endsWith('.wav')
+    ? 'wav'
+    : 'mp3';
 
   // Persist settings to localStorage on change
   useEffect(() => {
@@ -478,8 +481,8 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
     if (!result?.outputPath) return;
     await window.electronAPI.saveFileFromTemp({
       sourcePath: result.outputPath,
-      filterName: outputFormat === 'wav' ? 'Audio WAV' : 'Audio MP3',
-      extension: outputFormat
+      filterName: resultOutputFormat === 'wav' ? 'Audio WAV' : 'Audio MP3',
+      extension: resultOutputFormat
     });
   };
 
@@ -830,7 +833,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                 {/* File list links */}
                 <div className="space-y-2 text-xs font-mono">
                   <div>
-                    <span className="text-gray-500 block text-[10px]">Tệp âm thanh (Voiceover {outputFormat.toUpperCase()})</span>
+                    <span className="text-gray-500 block text-[10px]">Tệp âm thanh (Voiceover {resultOutputFormat.toUpperCase()})</span>
                     <span className="text-white select-all break-all block bg-bg-dark border border-border-dark/60 p-2 rounded-lg mt-1">{result.outputPath}</span>
                   </div>
                   <div className="text-[10px] text-gray-400 mt-2 space-y-1 font-sans">
@@ -858,7 +861,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                       className="py-2.5 bg-bg-card hover:bg-bg-dark border border-border-dark text-gray-300 hover:text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      Lưu {outputFormat.toUpperCase()}
+                      Lưu {resultOutputFormat.toUpperCase()}
                     </button>
                   </div>
 

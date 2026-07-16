@@ -51,6 +51,15 @@ export function validateTtsJobRequest(request) {
   if (!['stable', 'expressive'].includes(request.mode)) {
     return { ok: false, error: 'Invalid TTS mode.' };
   }
+  if (!request.languageCode?.trim()) {
+    return { ok: false, error: 'TTS language is required.' };
+  }
+  if (!request.speaker?.trim() || !request.voiceName?.trim()) {
+    return { ok: false, error: 'TTS speaker and voice are required.' };
+  }
+  if (request.mode === 'expressive' && !request.modelName?.trim()) {
+    return { ok: false, error: 'Expressive TTS model is required.' };
+  }
   if (!request.outputPath) return { ok: false, error: 'Output path is required.' };
   if (!['wav', 'mp3'].includes(request.outputFormat)) {
     return { ok: false, error: 'Invalid output format.' };

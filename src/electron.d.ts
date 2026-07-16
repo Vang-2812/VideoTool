@@ -200,6 +200,7 @@ declare global {
     saveApiKey: (service: 'google' | 'openai', key: string) => Promise<{ success: boolean; error?: string }>;
     getApiKey: (service: 'openai') => Promise<{ success: boolean; key: string; error?: string }>;
     deleteApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; error?: string }>;
+    startGoogleOAuth: (clientId: string, clientSecret: string) => Promise<{ success: boolean; error?: string }>;
     synthesizeSpeech: (request: TtsJobRequest) => Promise<TtsJobResult>;
     cancelTtsJob: () => Promise<{ success: boolean }>;
     onTtsJobProgress: (callback: (payload: TtsJobProgress) => void) => () => void;

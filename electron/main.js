@@ -795,6 +795,7 @@ ipcMain.handle('start-google-oauth', async (_, { clientId, clientSecret }) => {
 
           if (code) {
             const { tokens } = await oAuth2Client.getToken(code);
+            await ensureConfigDir();
             // Save to API_KEY_FILE
             const payload = JSON.stringify({
               clientId,

@@ -29,6 +29,9 @@ export async function synthesizeChirpStreaming(options) {
       if (audioContent?.length) {
         const copy = Buffer.from(audioContent);
         audioWrites = audioWrites.then(() => options.sink.append(copy));
+        // The RPC may fail before `end` awaits this chain. Keep the original
+        // rejecting promise for `done`, while marking its rejection observed.
+        void audioWrites.catch(() => {});
       }
     });
     stream.once('end', () => audioWrites.then(resolve, reject));

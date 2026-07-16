@@ -85,7 +85,7 @@ export default function AppSettingsScreen() {
     setSavingGoogle(true);
     try {
       // Frontend will call a new IPC method to start OAuth flow
-      const res = await (window.electronAPI as any).startGoogleOAuth(clientId.trim(), clientSecret.trim());
+      const res = await window.electronAPI.startGoogleOAuth(clientId.trim(), clientSecret.trim());
       if (res.success) {
         await loadGoogleAuthStatus();
         alert('Đã kết nối và lưu thông tin xác thực Google Cloud thành công.');

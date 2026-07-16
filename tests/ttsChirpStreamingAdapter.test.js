@@ -120,3 +120,24 @@ test('cancels the active bidi stream', async () => {
   await assert.rejects(promise, { name: 'AbortError' });
   assert.equal(stream.cancelled, true);
 });
+
+test('observes a pending sink failure when the stream errors first', async () => {
+  const stream = new FakeBidiStream();
+  stream.end = () => {
+    queueMicrotask(() => {
+      stream.emit('data', { audioContent: Buffer.from([1, 0]) });
+      stream.emit('error', new Error('stream failed'));
+    });
+  };
+
+  await assert.rejects(synthesizeChirpStreaming(baseOptions(stream, {
+    sink: {
+      append: async () => {
+        await Promise.resolve();
+        throw new Error('disk failed');
+      }
+    }
+  })), /stream failed/);
+
+  await new Promise((resolve) => setImmediate(resolve));
+});

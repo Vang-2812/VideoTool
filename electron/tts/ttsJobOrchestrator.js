@@ -43,6 +43,11 @@ export function createTtsJobOrchestrator(deps) {
       }
 
       await attempt.close();
+      context.onProgress?.({
+        phase: 'encoding',
+        progress: 95,
+        engine
+      });
       await deps.finalize({
         pcmPath: attempt.pcmPath,
         outputPath: request.outputPath,
