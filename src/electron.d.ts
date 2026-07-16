@@ -198,7 +198,7 @@ declare global {
 
     // API Key & TTS APIs
     saveApiKey: (service: 'google' | 'openai', key: string) => Promise<{ success: boolean; error?: string }>;
-    getApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; key: string; error?: string }>;
+    getApiKey: (service: 'openai') => Promise<{ success: boolean; key: string; error?: string }>;
     deleteApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; error?: string }>;
     synthesizeSpeech: (request: TtsJobRequest) => Promise<TtsJobResult>;
     cancelTtsJob: () => Promise<{ success: boolean }>;

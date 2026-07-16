@@ -731,7 +731,14 @@ ipcMain.handle('save-api-key', async (_, { service, key }) => {
 
 ipcMain.handle('get-api-key', async (_, { service }) => {
   try {
-    const filePath = service === 'openai' ? OPENAI_KEY_FILE : API_KEY_FILE;
+    if (service === 'google') {
+      return {
+        success: false,
+        key: '',
+        error: 'Google credentials are available through status APIs only.'
+      };
+    }
+    const filePath = OPENAI_KEY_FILE;
     try {
       await fs.access(filePath);
     } catch {

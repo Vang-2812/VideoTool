@@ -5,17 +5,20 @@ import {
   Settings,
   Volume2,
   FileText,
-  FolderOpen,
   AlertTriangle,
   CheckCircle2,
   Loader2,
   Download,
   Info,
-  ExternalLink,
   Play,
   XCircle
 } from 'lucide-react';
 import { chunkTextForTTS } from '../utils/ttsChunker';
+import {
+  buildChirpVoiceName,
+  migrateTtsProfile,
+  normalizeTtsSettings
+} from '../../shared/ttsConfig.js';
 
 const MODELS = [
   { id: 'gemini-3.1-flash-tts-preview', label: 'Gemini 3.1 Flash TTS (Preview)' },
@@ -29,36 +32,36 @@ const LANGUAGES = [
     label: 'Tiếng Việt (Vietnamese)',
     voices: [
       // Giọng Nam
-      { id: 'Charon', label: 'Charon (Giọng Nam trầm, Điềm đạm)' },
-      { id: 'Fenrir', label: 'Fenrir (Giọng Nam khỏe, Mạnh mẽ)' },
-      { id: 'Puck', label: 'Puck (Giọng Nam ấm, Tự nhiên)' },
-      { id: 'Algenib', label: 'Algenib (Giọng Nam trung)' },
-      { id: 'Alnilam', label: 'Alnilam (Giọng Nam trầm ấm)' },
-      { id: 'Orus', label: 'Orus (Giọng Nam dày)' },
-      { id: 'Achernar', label: 'Achernar (Giọng Nam dõng dạc)' },
-      { id: 'Iapetus', label: 'Iapetus (Giọng Nam nhẹ nhàng)' },
-      { id: 'Enceladus', label: 'Enceladus (Giọng Nam trẻ trung)' },
-      { id: 'Rasalgethi', label: 'Rasalgethi (Giọng Nam cuốn hút)' },
-      { id: 'Schedar', label: 'Schedar (Giọng Nam chững chạc)' },
-      { id: 'Umbriel', label: 'Umbriel (Giọng Nam ấm áp)' },
+      { id: 'Charon', label: 'Charon (Giọng Nam trầm, Điềm đạm)', gender: 'male' },
+      { id: 'Fenrir', label: 'Fenrir (Giọng Nam khỏe, Mạnh mẽ)', gender: 'male' },
+      { id: 'Puck', label: 'Puck (Giọng Nam ấm, Tự nhiên)', gender: 'male' },
+      { id: 'Algenib', label: 'Algenib (Giọng Nam trung)', gender: 'male' },
+      { id: 'Alnilam', label: 'Alnilam (Giọng Nam trầm ấm)', gender: 'male' },
+      { id: 'Orus', label: 'Orus (Giọng Nam dày)', gender: 'male' },
+      { id: 'Achernar', label: 'Achernar (Giọng Nam dõng dạc)', gender: 'male' },
+      { id: 'Iapetus', label: 'Iapetus (Giọng Nam nhẹ nhàng)', gender: 'male' },
+      { id: 'Enceladus', label: 'Enceladus (Giọng Nam trẻ trung)', gender: 'male' },
+      { id: 'Rasalgethi', label: 'Rasalgethi (Giọng Nam cuốn hút)', gender: 'male' },
+      { id: 'Schedar', label: 'Schedar (Giọng Nam chững chạc)', gender: 'male' },
+      { id: 'Umbriel', label: 'Umbriel (Giọng Nam ấm áp)', gender: 'male' },
 
       // Giọng Nữ
-      { id: 'Aoede', label: 'Aoede (Giọng Nữ thanh, Truyền cảm)' },
-      { id: 'Kore', label: 'Kore (Giọng Nữ sáng, Trong trẻo)' },
-      { id: 'Callirrhoe', label: 'Callirrhoe (Giọng Nữ năng động)' },
-      { id: 'Leda', label: 'Leda (Giọng Nữ dịu dàng)' },
-      { id: 'Zephyr', label: 'Zephyr (Giọng Nữ êm dịu, Nhẹ nhàng)' },
-      { id: 'Autonoe', label: 'Autonoe (Giọng Nữ đầm ấm)' },
-      { id: 'Laomedeia', label: 'Laomedeia (Giọng Nữ tự tin)' },
-      { id: 'Despina', label: 'Despina (Giọng Nữ trẻ trung)' },
-      { id: 'Erinome', label: 'Erinome (Giọng Nữ thanh lịch)' },
-      { id: 'Achird', label: 'Achird (Giọng Nữ dễ thương)' },
-      { id: 'Algieba', label: 'Algieba (Giọng Nữ ấm áp)' },
-      { id: 'Pulcherrima', label: 'Pulcherrima (Giọng Nữ sang trọng)' },
-      { id: 'Sadachbia', label: 'Sadachbia (Giọng Nữ tinh tế)' },
-      { id: 'Sadaltager', label: 'Sadaltager (Giọng Nữ êm ái)' },
-      { id: 'Sulafat', label: 'Sulafat (Giọng Nữ thanh thoát)' },
-      { id: 'Vindemiatrix', label: 'Vindemiatrix (Giọng Nữ trưởng thành)' }
+      { id: 'Aoede', label: 'Aoede (Giọng Nữ thanh, Truyền cảm)', gender: 'female' },
+      { id: 'Kore', label: 'Kore (Giọng Nữ sáng, Trong trẻo)', gender: 'female' },
+      { id: 'Callirrhoe', label: 'Callirrhoe (Giọng Nữ năng động)', gender: 'female' },
+      { id: 'Leda', label: 'Leda (Giọng Nữ dịu dàng)', gender: 'female' },
+      { id: 'Zephyr', label: 'Zephyr (Giọng Nữ êm dịu, Nhẹ nhàng)', gender: 'female' },
+      { id: 'Autonoe', label: 'Autonoe (Giọng Nữ đầm ấm)', gender: 'female' },
+      { id: 'Laomedeia', label: 'Laomedeia (Giọng Nữ tự tin)', gender: 'female' },
+      { id: 'Despina', label: 'Despina (Giọng Nữ trẻ trung)', gender: 'female' },
+      { id: 'Erinome', label: 'Erinome (Giọng Nữ thanh lịch)', gender: 'female' },
+      { id: 'Achird', label: 'Achird (Giọng Nữ dễ thương)', gender: 'female' },
+      { id: 'Algieba', label: 'Algieba (Giọng Nữ ấm áp)', gender: 'female' },
+      { id: 'Pulcherrima', label: 'Pulcherrima (Giọng Nữ sang trọng)', gender: 'female' },
+      { id: 'Sadachbia', label: 'Sadachbia (Giọng Nữ tinh tế)', gender: 'female' },
+      { id: 'Sadaltager', label: 'Sadaltager (Giọng Nữ êm ái)', gender: 'female' },
+      { id: 'Sulafat', label: 'Sulafat (Giọng Nữ thanh thoát)', gender: 'female' },
+      { id: 'Vindemiatrix', label: 'Vindemiatrix (Giọng Nữ trưởng thành)', gender: 'female' }
     ]
   },
   {
@@ -66,36 +69,36 @@ const LANGUAGES = [
     label: 'Tiếng Anh (English - US)',
     voices: [
       // Male Voices
-      { id: 'Charon', label: 'Charon (Male - Deep & Calm)' },
-      { id: 'Fenrir', label: 'Fenrir (Male - Strong & Powerful)' },
-      { id: 'Puck', label: 'Puck (Male - Warm & Natural)' },
-      { id: 'Algenib', label: 'Algenib (Male - Balanced)' },
-      { id: 'Alnilam', label: 'Alnilam (Male - Deep & Warm)' },
-      { id: 'Orus', label: 'Orus (Male - Thick)' },
-      { id: 'Achernar', label: 'Achernar (Male - Authoritative)' },
-      { id: 'Iapetus', label: 'Iapetus (Male - Gentle)' },
-      { id: 'Enceladus', label: 'Enceladus (Male - Youthful)' },
-      { id: 'Rasalgethi', label: 'Rasalgethi (Male - Engaging)' },
-      { id: 'Schedar', label: 'Schedar (Male - Mature)' },
-      { id: 'Umbriel', label: 'Umbriel (Male - Friendly)' },
+      { id: 'Charon', label: 'Charon (Male - Deep & Calm)', gender: 'male' },
+      { id: 'Fenrir', label: 'Fenrir (Male - Strong & Powerful)', gender: 'male' },
+      { id: 'Puck', label: 'Puck (Male - Warm & Natural)', gender: 'male' },
+      { id: 'Algenib', label: 'Algenib (Male - Balanced)', gender: 'male' },
+      { id: 'Alnilam', label: 'Alnilam (Male - Deep & Warm)', gender: 'male' },
+      { id: 'Orus', label: 'Orus (Male - Thick)', gender: 'male' },
+      { id: 'Achernar', label: 'Achernar (Male - Authoritative)', gender: 'male' },
+      { id: 'Iapetus', label: 'Iapetus (Male - Gentle)', gender: 'male' },
+      { id: 'Enceladus', label: 'Enceladus (Male - Youthful)', gender: 'male' },
+      { id: 'Rasalgethi', label: 'Rasalgethi (Male - Engaging)', gender: 'male' },
+      { id: 'Schedar', label: 'Schedar (Male - Mature)', gender: 'male' },
+      { id: 'Umbriel', label: 'Umbriel (Male - Friendly)', gender: 'male' },
 
       // Female Voices
-      { id: 'Aoede', label: 'Aoede (Female - Clear & Expressive)' },
-      { id: 'Kore', label: 'Kore (Female - Bright & Crisp)' },
-      { id: 'Callirrhoe', label: 'Callirrhoe (Female - Energetic)' },
-      { id: 'Leda', label: 'Leda (Female - Gentle)' },
-      { id: 'Zephyr', label: 'Zephyr (Female - Soothing)' },
-      { id: 'Autonoe', label: 'Autonoe (Female - Warm)' },
-      { id: 'Laomedeia', label: 'Laomedeia (Female - Confident)' },
-      { id: 'Despina', label: 'Despina (Female - Young)' },
-      { id: 'Erinome', label: 'Erinome (Female - Elegant)' },
-      { id: 'Achird', label: 'Achird (Female - Sweet)' },
-      { id: 'Algieba', label: 'Algieba (Female - Warm)' },
-      { id: 'Pulcherrima', label: 'Pulcherrima (Female - Sophisticated)' },
-      { id: 'Sadachbia', label: 'Sadachbia (Female - Refined)' },
-      { id: 'Sadaltager', label: 'Sadaltager (Female - Smooth)' },
-      { id: 'Sulafat', label: 'Sulafat (Female - Graceful)' },
-      { id: 'Vindemiatrix', label: 'Vindemiatrix (Female - Mature)' }
+      { id: 'Aoede', label: 'Aoede (Female - Clear & Expressive)', gender: 'female' },
+      { id: 'Kore', label: 'Kore (Female - Bright & Crisp)', gender: 'female' },
+      { id: 'Callirrhoe', label: 'Callirrhoe (Female - Energetic)', gender: 'female' },
+      { id: 'Leda', label: 'Leda (Female - Gentle)', gender: 'female' },
+      { id: 'Zephyr', label: 'Zephyr (Female - Soothing)', gender: 'female' },
+      { id: 'Autonoe', label: 'Autonoe (Female - Warm)', gender: 'female' },
+      { id: 'Laomedeia', label: 'Laomedeia (Female - Confident)', gender: 'female' },
+      { id: 'Despina', label: 'Despina (Female - Young)', gender: 'female' },
+      { id: 'Erinome', label: 'Erinome (Female - Elegant)', gender: 'female' },
+      { id: 'Achird', label: 'Achird (Female - Sweet)', gender: 'female' },
+      { id: 'Algieba', label: 'Algieba (Female - Warm)', gender: 'female' },
+      { id: 'Pulcherrima', label: 'Pulcherrima (Female - Sophisticated)', gender: 'female' },
+      { id: 'Sadachbia', label: 'Sadachbia (Female - Refined)', gender: 'female' },
+      { id: 'Sadaltager', label: 'Sadaltager (Female - Smooth)', gender: 'female' },
+      { id: 'Sulafat', label: 'Sulafat (Female - Graceful)', gender: 'female' },
+      { id: 'Vindemiatrix', label: 'Vindemiatrix (Female - Mature)', gender: 'female' }
     ]
   },
   {
@@ -103,36 +106,36 @@ const LANGUAGES = [
     label: 'Tiếng Anh (English - UK)',
     voices: [
       // Male Voices
-      { id: 'Charon', label: 'Charon (British Male - Deep & Calm)' },
-      { id: 'Fenrir', label: 'Fenrir (British Male - Strong & Powerful)' },
-      { id: 'Puck', label: 'Puck (British Male - Warm & Natural)' },
-      { id: 'Algenib', label: 'Algenib (British Male - Balanced)' },
-      { id: 'Alnilam', label: 'Alnilam (British Male - Deep & Warm)' },
-      { id: 'Orus', label: 'Orus (British Male - Thick)' },
-      { id: 'Achernar', label: 'Achernar (British Male - Authoritative)' },
-      { id: 'Iapetus', label: 'Iapetus (British Male - Gentle)' },
-      { id: 'Enceladus', label: 'Enceladus (British Male - Youthful)' },
-      { id: 'Rasalgethi', label: 'Rasalgethi (British Male - Engaging)' },
-      { id: 'Schedar', label: 'Schedar (British Male - Mature)' },
-      { id: 'Umbriel', label: 'Umbriel (British Male - Friendly)' },
+      { id: 'Charon', label: 'Charon (British Male - Deep & Calm)', gender: 'male' },
+      { id: 'Fenrir', label: 'Fenrir (British Male - Strong & Powerful)', gender: 'male' },
+      { id: 'Puck', label: 'Puck (British Male - Warm & Natural)', gender: 'male' },
+      { id: 'Algenib', label: 'Algenib (British Male - Balanced)', gender: 'male' },
+      { id: 'Alnilam', label: 'Alnilam (British Male - Deep & Warm)', gender: 'male' },
+      { id: 'Orus', label: 'Orus (British Male - Thick)', gender: 'male' },
+      { id: 'Achernar', label: 'Achernar (British Male - Authoritative)', gender: 'male' },
+      { id: 'Iapetus', label: 'Iapetus (British Male - Gentle)', gender: 'male' },
+      { id: 'Enceladus', label: 'Enceladus (British Male - Youthful)', gender: 'male' },
+      { id: 'Rasalgethi', label: 'Rasalgethi (British Male - Engaging)', gender: 'male' },
+      { id: 'Schedar', label: 'Schedar (British Male - Mature)', gender: 'male' },
+      { id: 'Umbriel', label: 'Umbriel (British Male - Friendly)', gender: 'male' },
 
       // Female Voices
-      { id: 'Aoede', label: 'Aoede (British Female - Clear & Expressive)' },
-      { id: 'Kore', label: 'Kore (British Female - Bright & Crisp)' },
-      { id: 'Callirrhoe', label: 'Callirrhoe (British Female - Energetic)' },
-      { id: 'Leda', label: 'Leda (British Female - Gentle)' },
-      { id: 'Zephyr', label: 'Zephyr (British Female - Soothing)' },
-      { id: 'Autonoe', label: 'Autonoe (British Female - Warm)' },
-      { id: 'Laomedeia', label: 'Laomedeia (British Female - Confident)' },
-      { id: 'Despina', label: 'Despina (British Female - Young)' },
-      { id: 'Erinome', label: 'Erinome (British Female - Elegant)' },
-      { id: 'Achird', label: 'Achird (British Female - Sweet)' },
-      { id: 'Algieba', label: 'Algieba (British Female - Warm)' },
-      { id: 'Pulcherrima', label: 'Pulcherrima (British Female - Sophisticated)' },
-      { id: 'Sadachbia', label: 'Sadachbia (British Female - Refined)' },
-      { id: 'Sadaltager', label: 'Sadaltager (British Female - Smooth)' },
-      { id: 'Sulafat', label: 'Sulafat (British Female - Graceful)' },
-      { id: 'Vindemiatrix', label: 'Vindemiatrix (British Female - Mature)' }
+      { id: 'Aoede', label: 'Aoede (British Female - Clear & Expressive)', gender: 'female' },
+      { id: 'Kore', label: 'Kore (British Female - Bright & Crisp)', gender: 'female' },
+      { id: 'Callirrhoe', label: 'Callirrhoe (British Female - Energetic)', gender: 'female' },
+      { id: 'Leda', label: 'Leda (British Female - Gentle)', gender: 'female' },
+      { id: 'Zephyr', label: 'Zephyr (British Female - Soothing)', gender: 'female' },
+      { id: 'Autonoe', label: 'Autonoe (British Female - Warm)', gender: 'female' },
+      { id: 'Laomedeia', label: 'Laomedeia (British Female - Confident)', gender: 'female' },
+      { id: 'Despina', label: 'Despina (British Female - Young)', gender: 'female' },
+      { id: 'Erinome', label: 'Erinome (British Female - Elegant)', gender: 'female' },
+      { id: 'Achird', label: 'Achird (British Female - Sweet)', gender: 'female' },
+      { id: 'Algieba', label: 'Algieba (British Female - Warm)', gender: 'female' },
+      { id: 'Pulcherrima', label: 'Pulcherrima (British Female - Sophisticated)', gender: 'female' },
+      { id: 'Sadachbia', label: 'Sadachbia (British Female - Refined)', gender: 'female' },
+      { id: 'Sadaltager', label: 'Sadaltager (British Female - Smooth)', gender: 'female' },
+      { id: 'Sulafat', label: 'Sulafat (British Female - Graceful)', gender: 'female' },
+      { id: 'Vindemiatrix', label: 'Vindemiatrix (British Female - Mature)', gender: 'female' }
     ]
   }
 ];
@@ -140,11 +143,13 @@ const LANGUAGES = [
 interface TtsProfile {
   id: string;
   name: string;
+  mode: TtsMode;
   prompt: string;
   model: string;
   langCode: string;
   voiceName: string;
   speakingRate: number;
+  outputFormat: 'wav' | 'mp3';
 }
 
 interface TtsScreenProps {
@@ -152,46 +157,71 @@ interface TtsScreenProps {
 }
 
 export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
+  const initial = React.useMemo(() => normalizeTtsSettings({
+    mode: localStorage.getItem('tts_mode') || undefined,
+    languageCode: localStorage.getItem('tts_langCode') || undefined,
+    speaker: localStorage.getItem('tts_voiceName') || undefined,
+    speakingRate: localStorage.getItem('tts_speakingRate')
+      ? Number(localStorage.getItem('tts_speakingRate'))
+      : undefined,
+    model: localStorage.getItem('tts_model') || undefined,
+    prompt: localStorage.getItem('tts_prompt') || undefined,
+    outputFormat: localStorage.getItem('tts_outputFormat') || undefined
+  }), []);
   const [text, setText] = useState(() => localStorage.getItem('tts_text') || '');
-  const [prompt, setPrompt] = useState(() => localStorage.getItem('tts_prompt') || 'Read aloud in a warm, welcoming tone.');
-  const [model, setModel] = useState(() => localStorage.getItem('tts_model') || 'gemini-3.1-flash-tts-preview');
-  const [langCode, setLangCode] = useState(() => localStorage.getItem('tts_langCode') || 'vi-VN');
-  const [voiceName, setVoiceName] = useState(() => localStorage.getItem('tts_voiceName') || 'Charon');
-  const [speakingRate, setSpeakingRate] = useState(() => {
-    const saved = localStorage.getItem('tts_speakingRate');
-    return saved ? parseFloat(saved) : 1.0;
-  });
+  const [mode, setMode] = useState<TtsMode>(initial.mode);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [model, setModel] = useState(initial.model);
+  const [langCode, setLangCode] = useState(initial.languageCode);
+  const [voiceName, setVoiceName] = useState(initial.speaker);
+  const [speakingRate, setSpeakingRate] = useState(initial.speakingRate);
+  const [outputFormat, setOutputFormat] = useState<'wav' | 'mp3'>(initial.outputFormat);
 
   const [profiles, setProfiles] = useState<TtsProfile[]>(() => {
     const saved = localStorage.getItem('tts_profiles');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        return JSON.parse(saved).map((profile: Partial<TtsProfile>) => ({
+          ...migrateTtsProfile(profile),
+          outputFormat: profile.outputFormat ?? 'mp3'
+        })) as TtsProfile[];
+      } catch {
+        // Fall through to the built-in profiles.
+      }
+    }
     return [
       {
         id: 'default',
         name: 'Mặc định (Default)',
+        mode: 'stable',
         prompt: 'Read aloud in a warm, welcoming tone.',
         model: 'gemini-3.1-flash-tts-preview',
-        langCode: 'vi-VN',
+        langCode: 'en-US',
         voiceName: 'Charon',
-        speakingRate: 1.0
+        speakingRate: 1.0,
+        outputFormat: 'mp3'
       },
       {
         id: 'deep-english-male',
         name: 'Giọng Nam trầm ấm (English)',
+        mode: 'expressive',
         prompt: 'Read aloud in a deep, calm, and deliberate tone with clear articulation and natural pauses.',
         model: 'gemini-3.1-flash-tts-preview',
         langCode: 'en-US',
         voiceName: 'Alnilam',
-        speakingRate: 1.1
+        speakingRate: 1.1,
+        outputFormat: 'mp3'
       },
       {
         id: 'warm-vietnamese-female',
         name: 'Giọng Nữ truyền cảm (Vietnamese)',
+        mode: 'expressive',
         prompt: 'Đọc diễn cảm, ấm áp, truyền cảm hứng và tự nhiên.',
         model: 'gemini-3.1-flash-tts-preview',
         langCode: 'vi-VN',
         voiceName: 'Aoede',
-        speakingRate: 1.0
+        speakingRate: 1.0,
+        outputFormat: 'mp3'
       }
     ];
   });
@@ -214,11 +244,13 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
     setSelectedProfileId(profileId);
     const prof = profiles.find(p => p.id === profileId);
     if (prof) {
+      setMode(prof.mode);
       setPrompt(prof.prompt);
       setModel(prof.model);
       setLangCode(prof.langCode);
       setVoiceName(prof.voiceName);
       setSpeakingRate(prof.speakingRate);
+      setOutputFormat(prof.outputFormat);
     }
   };
 
@@ -229,11 +261,13 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
     const newProfile: TtsProfile = {
       id: 'profile_' + Date.now(),
       name: name.trim(),
+      mode,
       prompt,
       model,
       langCode,
       voiceName,
-      speakingRate
+      speakingRate,
+      outputFormat
     };
 
     setProfiles(prev => [...prev, newProfile]);
@@ -246,11 +280,13 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
       if (p.id === selectedProfileId) {
         return {
           ...p,
+          mode,
           prompt,
           model,
           langCode,
           voiceName,
-          speakingRate
+          speakingRate,
+          outputFormat
         };
       }
       return p;
@@ -271,36 +307,49 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
     setSelectedProfileId('default');
     const prof = remaining.find(p => p.id === 'default') || remaining[0];
     if (prof) {
+      setMode(prof.mode);
       setPrompt(prof.prompt);
       setModel(prof.model);
       setLangCode(prof.langCode);
       setVoiceName(prof.voiceName);
       setSpeakingRate(prof.speakingRate);
+      setOutputFormat(prof.outputFormat);
     }
   };
 
   // States
-  const [googleKeyExists, setGoogleKeyExists] = useState(false);
+  const [googleAuthAvailable, setGoogleAuthAvailable] = useState(false);
+  const [streamingAvailable, setStreamingAvailable] = useState(false);
 
   // Execution States
   const [loading, setLoading] = useState(false);
-  // Chunking
+  const chunkProvider = mode === 'expressive'
+    ? 'gemini'
+    : streamingAvailable ? 'chirp-streaming' : 'cloud-rest';
   const chunks = React.useMemo(() => {
-    return chunkTextForTTS(text, prompt);
-  }, [text, prompt]);
+    try {
+      return chunkTextForTTS(text, {
+        provider: chunkProvider,
+        languageCode: langCode,
+        prompt: mode === 'expressive' ? prompt : undefined
+      });
+    } catch {
+      return [];
+    }
+  }, [text, prompt, mode, langCode, chunkProvider]);
 
-  // Phase B: Execution States
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<TtsJobResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeChunks, setActiveChunks] = useState<any[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentChunkIndex, setCurrentChunkIndex] = useState(-1);
-  const [savePathState, setSavePathState] = useState('');
+  const [jobProgress, setJobProgress] = useState<TtsJobProgress | null>(null);
 
   // Persist settings to localStorage on change
   useEffect(() => {
     localStorage.setItem('tts_text', text);
   }, [text]);
+
+  useEffect(() => {
+    localStorage.setItem('tts_mode', mode);
+  }, [mode]);
 
   useEffect(() => {
     localStorage.setItem('tts_prompt', prompt);
@@ -322,6 +371,10 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
     localStorage.setItem('tts_speakingRate', speakingRate.toString());
   }, [speakingRate]);
 
+  useEffect(() => {
+    localStorage.setItem('tts_outputFormat', outputFormat);
+  }, [outputFormat]);
+
   // Sync voice options when language changes
   useEffect(() => {
     const lang = LANGUAGES.find(l => l.code === langCode);
@@ -335,15 +388,26 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
 
   // Load key existence on mount
   useEffect(() => {
-    checkSetup();
+    void checkSetup();
   }, []);
+
+  useEffect(() => window.electronAPI.onTtsJobProgress((payload) => {
+    setJobProgress(payload);
+  }), []);
 
   const checkSetup = async () => {
     try {
-      const gRes = await window.electronAPI.getApiKey('google');
-      setGoogleKeyExists(!!(gRes.success && gRes.key));
+      const [oauth, credentials] = await Promise.all([
+        window.electronAPI.getGoogleAuthStatus(),
+        window.electronAPI.getGoogleCredentialsStatus()
+      ]);
+      const hasStreaming = credentials.status === 'valid';
+      setStreamingAvailable(hasStreaming);
+      setGoogleAuthAvailable(oauth.connected || hasStreaming);
     } catch (err) {
       console.error('Failed to check keys status:', err);
+      setGoogleAuthAvailable(false);
+      setStreamingAvailable(false);
     }
   };
 
@@ -361,130 +425,62 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
 
 
 
-  const processChunks = async (chunksToProcess: any[], finalSavePath: string) => {
-    setIsGenerating(true);
-    let allSuccess = true;
-    const newActiveChunks = [...chunksToProcess];
-
-    for (let i = 0; i < newActiveChunks.length; i++) {
-      if (newActiveChunks[i].status === 'success') continue;
-
-      setCurrentChunkIndex(i);
-      newActiveChunks[i].status = 'pending';
-      setActiveChunks([...newActiveChunks]);
-
-      const tempPath = newActiveChunks.length === 1
-        ? finalSavePath
-        : finalSavePath.replace(/\.mp3$/i, `_chunk_${newActiveChunks[i].id}.mp3`);
-
-      let success = false;
-      let errorMsg = '';
-
-      // Auto-retry up to 2 times (total 3 tries)
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const params = {
-            text: newActiveChunks[i].text,
-            prompt: prompt.trim(),
-            model,
-            languageCode: langCode,
-            voiceName,
-            speakingRate,
-            outputPath: tempPath
-          };
-          const res = await window.electronAPI.synthesizeSpeech(params);
-          if (res.success) {
-            success = true;
-            newActiveChunks[i].audioPath = tempPath;
-            break;
-          } else {
-            errorMsg = res.error || 'Lỗi không xác định';
-            if (attempt < 3) await new Promise(r => setTimeout(r, 1000)); // delay before retry
-          }
-        } catch (err: any) {
-          errorMsg = err.message;
-          if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
-        }
-      }
-
-      if (success) {
-        newActiveChunks[i].status = 'success';
-      } else {
-        newActiveChunks[i].status = 'error';
-        newActiveChunks[i].errorMsg = errorMsg;
-        allSuccess = false;
-        setActiveChunks([...newActiveChunks]);
-        break; // Dừng lại ở chunk lỗi
-      }
-      setActiveChunks([...newActiveChunks]);
-    }
-
-    if (allSuccess) {
-      // PHASE C: Ghép audio
-      setIsGenerating(false);
-      setLoading(true);
-
-      try {
-        const tempPaths = newActiveChunks.map(c => c.audioPath).filter(Boolean);
-        const concatRes = await window.electronAPI.concatAudioOnly({
-          tempPaths,
-          finalOutputPath: finalSavePath
-        });
-
-        if (concatRes.success) {
-          setResult({ mp3Path: concatRes.audioPath });
-        } else {
-          setError(concatRes.error || 'Lỗi ghép file audio.');
-        }
-      } catch (e: any) {
-        setError(e.message || 'Lỗi hệ thống khi ghép audio.');
-      }
-    }
-
-    setIsGenerating(false);
-    setCurrentChunkIndex(-1);
-  };
-
   const handleGenerate = async () => {
-    if (!googleKeyExists) {
-      alert('Chưa cấu hình API Key Google Cloud TTS. Vui lòng cấu hình trong phần Cài đặt.');
+    if (!googleAuthAvailable) {
+      setError('Chưa cấu hình Google Cloud OAuth hoặc service-account credentials.');
       return;
     }
 
-    const savePath = await window.electronAPI.getTempPath();
+    const basePath = await window.electronAPI.getTempPath();
+    const outputPath = basePath.replace(/\.mp3$/i, `.${outputFormat}`);
 
     setLoading(true);
     setError(null);
     setResult(null);
-    setSavePathState(savePath);
-
-    const initialChunks = chunks.map(c => ({ ...c }));
-    setActiveChunks(initialChunks);
-
-    await processChunks(initialChunks, savePath);
-    setLoading(false);
-  };
-
-  const handleRetry = async () => {
-    if (!savePathState) return;
-    setLoading(true);
-    await processChunks(activeChunks, savePathState);
-    setLoading(false);
-  };
-
-  const handleSaveMp3 = async () => {
-    if (!result?.mp3Path) return;
-    await window.electronAPI.saveFileFromTemp({
-      sourcePath: result.mp3Path,
-      filterName: 'Audio MP3',
-      extension: 'mp3'
+    setJobProgress({
+      phase: 'validating',
+      progress: 0,
+      engine: mode === 'stable' ? 'chirp-streaming' : 'gemini-rest'
     });
+
+    try {
+      const response = await window.electronAPI.synthesizeSpeech({
+        mode,
+        text,
+        prompt: mode === 'expressive' ? prompt.trim() : undefined,
+        modelName: mode === 'expressive' ? model : undefined,
+        languageCode: langCode,
+        speaker: voiceName,
+        voiceName: mode === 'stable'
+          ? buildChirpVoiceName(langCode, voiceName)
+          : voiceName,
+        speakingRate,
+        outputPath,
+        outputFormat
+      });
+      if (response.success) {
+        setResult(response);
+      } else if (!response.cancelled) {
+        setError(response.error || 'Không thể tạo audio.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Không thể tạo audio.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleCancel = async () => {
+    await window.electronAPI.cancelTtsJob();
+  };
 
-
-  const handleOpenFolder = (filePath: string) => {
-    window.electronAPI.openDirectory(filePath);
+  const handleSaveAudio = async () => {
+    if (!result?.outputPath) return;
+    await window.electronAPI.saveFileFromTemp({
+      sourcePath: result.outputPath,
+      filterName: outputFormat === 'wav' ? 'Audio WAV' : 'Audio MP3',
+      extension: outputFormat
+    });
   };
 
   const handlePlayAudio = (filePath: string) => {
@@ -492,8 +488,8 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   };
 
   const activeLanguage = LANGUAGES.find(l => l.code === langCode);
-  const maleVoices = activeLanguage?.voices.filter(v => v.label.startsWith('👨')) || [];
-  const femaleVoices = activeLanguage?.voices.filter(v => v.label.startsWith('👩')) || [];
+  const maleVoices = activeLanguage?.voices.filter(v => v.gender === 'male') || [];
+  const femaleVoices = activeLanguage?.voices.filter(v => v.gender === 'female') || [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
@@ -549,6 +545,39 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
           </select>
         </div>
 
+        {/* Stable is the default; Gemini remains available as experimental. */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setMode('stable')}
+              aria-pressed={mode === 'stable'}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors ${mode === 'stable' ? 'bg-primary/20 border-primary/50 text-primary-light' : 'bg-bg-dark border-border-dark text-gray-500 hover:text-gray-300'}`}
+            >
+              Stable
+            </button>
+            <button
+              onClick={() => setMode('expressive')}
+              aria-pressed={mode === 'expressive'}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors ${mode === 'expressive' ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300' : 'bg-bg-dark border-border-dark text-gray-500 hover:text-gray-300'}`}
+            >
+              Expressive / Experimental
+            </button>
+          </div>
+
+          {mode === 'stable' ? (
+            <div className="bg-primary/5 border border-primary/15 rounded-xl p-3 text-[11px] text-gray-400 space-y-1">
+              <div>Model: <span className="text-white">Chirp 3 HD</span></div>
+              <div>Voice: <span className="text-white font-mono">{buildChirpVoiceName(langCode, voiceName)}</span></div>
+              <div>{streamingAvailable ? 'Streaming cùng một voice session.' : 'Chirp REST với fallback toàn-job sang Neural2.'}</div>
+            </div>
+          ) : (
+            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-[11px] text-yellow-300 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              Experimental: giọng có thể thay đổi nhẹ giữa các lần chạy hoặc phân đoạn.
+            </div>
+          )}
+        </div>
+
         {/* Text Area Input */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
@@ -575,22 +604,24 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
             <span>{text.split(/\s+/).filter(Boolean).length} từ</span>
           </div>
 
-          {/* Chunking Preview or Execution Progress (v1.5.1) */}
-          {(activeChunks.length > 0 ? activeChunks : chunks).length > 0 && (
+          {/* Provider-aware chunk preview; execution remains one Main-process job. */}
+          {chunks.length > 0 && (
             <div className="bg-bg-dark border border-border-dark p-3 rounded-lg mt-2">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-accent" />
-                  Danh sách phân đoạn ({(activeChunks.length > 0 ? activeChunks : chunks).length} đoạn)
+                  Danh sách phân đoạn ({chunks.length} đoạn)
                 </span>
-                {(activeChunks.length > 0 ? activeChunks : chunks).length > 1 && (
+                {chunks.length > 1 && (
                   <span className="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full border border-accent/20">
-                    Sẽ được ghép tự động (Crossfade)
+                    {mode === 'stable' && streamingAvailable
+                      ? 'Streaming cùng một voice session'
+                      : 'Ghép PCM lossless'}
                   </span>
                 )}
               </div>
               <div className="max-h-32 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {(activeChunks.length > 0 ? activeChunks : chunks).map((chunk, idx) => (
+                {chunks.map((chunk) => (
                   <div key={chunk.id} className="text-[10px] bg-bg-panel p-2 rounded border border-border-dark flex flex-col gap-1">
                     <div className="flex gap-2">
                       <span className="text-gray-500 font-mono w-5 shrink-0">#{chunk.id}</span>
@@ -598,26 +629,11 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                         {chunk.text}
                       </div>
                       <div className="flex flex-col items-end shrink-0 gap-1">
-                        <span className={`font-mono ${chunk.byteCount > 7000 ? 'text-yellow-500' : 'text-gray-500'}`}>
+                        <span className="font-mono text-gray-500">
                           {chunk.byteCount}b
                         </span>
-                        {chunk.status === 'success' && <span className="text-green-400 font-bold bg-green-900/30 px-1 py-0.5 rounded border border-green-500/20">Thành công</span>}
-                        {chunk.status === 'error' && <span className="text-red-400 font-bold bg-red-900/30 px-1 py-0.5 rounded border border-red-500/20">Lỗi API</span>}
-                        {chunk.status === 'pending' && currentChunkIndex === idx && <span className="text-accent animate-pulse">Đang tạo...</span>}
-                        {chunk.status === 'pending' && currentChunkIndex !== idx && activeChunks.length > 0 && <span className="text-gray-500">Chờ xử lý</span>}
-
-                        {chunk.isHardCut && (
-                          <span className="bg-red-900/50 text-red-400 px-1 py-0.5 rounded-[4px] text-[8px] border border-red-500/30" title="Đoạn này bị cắt cứng do một câu quá dài vượt giới hạn.">
-                            Hard Cut
-                          </span>
-                        )}
                       </div>
                     </div>
-                    {chunk.errorMsg && (
-                      <div className="text-red-400 text-[9px] mt-1 bg-red-950 p-1.5 rounded border border-red-500/20">
-                        {chunk.errorMsg}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -625,34 +641,35 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
           )}
         </div>
 
-        {/* Style instructions prompt */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-gray-400">Style instructions (Prompt giọng đọc)</label>
-          <input
-            type="text"
-            placeholder="Ví dụ: Read aloud in a warm, welcoming tone."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="w-full bg-bg-dark border border-border-dark focus:border-primary text-white px-3 py-2 rounded-xl text-xs outline-none"
-          />
-          <span className="text-[10px] text-gray-500">Mẹo: Điều khiển tốc độ, tông giọng đọc (Gemini-TTS).</span>
-        </div>
+        {mode === 'expressive' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-gray-400 block">Model Gemini</span>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full bg-bg-dark border border-border-dark text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-primary"
+              >
+                {MODELS.map((item) => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-gray-400 block">Style instructions</span>
+              <input
+                type="text"
+                placeholder="Read aloud in a warm, welcoming tone."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="w-full bg-bg-dark border border-border-dark focus:border-primary text-white px-3 py-2 rounded-xl text-xs outline-none"
+              />
+            </label>
+          </div>
+        )}
 
         {/* Dropdowns row */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="space-y-1">
-            <span className="text-[10px] text-gray-500">Model</span>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-            >
-              {MODELS.map(m => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="space-y-1">
             <span className="text-[10px] text-gray-500">Ngôn ngữ</span>
             <select
@@ -674,16 +691,16 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
               className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
             >
               {maleVoices.length > 0 && (
-                <optgroup label="Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
+                <optgroup label="👨 Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
                   {maleVoices.map(v => (
-                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">{v.label}</option>
+                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👨 {v.label}</option>
                   ))}
                 </optgroup>
               )}
               {femaleVoices.length > 0 && (
-                <optgroup label="Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
+                <optgroup label="👩 Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
                   {femaleVoices.map(v => (
-                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">{v.label}</option>
+                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👩 {v.label}</option>
                   ))}
                 </optgroup>
               )}
@@ -698,7 +715,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
             <div className="flex items-center h-8">
               <input
                 type="range"
-                min="0.55"
+                min="0.25"
                 max="2.0"
                 step="0.05"
                 value={speakingRate}
@@ -707,33 +724,64 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
               />
             </div>
           </div>
+
+          <div className="space-y-1">
+            <span className="text-[10px] text-gray-500">Định dạng</span>
+            <select
+              value={outputFormat}
+              onChange={(e) => setOutputFormat(e.target.value as 'wav' | 'mp3')}
+              className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+            >
+              <option value="mp3">MP3 · 256 kbps</option>
+              <option value="wav">WAV · Lossless PCM</option>
+            </select>
+          </div>
         </div>
 
-        {/* Action Button */}
+        {loading && jobProgress && (
+          <div className="bg-bg-dark border border-border-dark rounded-xl p-4 space-y-2">
+            <div className="flex justify-between text-[11px]">
+              <span className="text-gray-300 capitalize">{jobProgress.phase} · {jobProgress.engine}</span>
+              <span className="text-primary font-mono">{jobProgress.progress}%</span>
+            </div>
+            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-200"
+                style={{ width: `${jobProgress.progress}%` }}
+              />
+            </div>
+            {jobProgress.message && (
+              <p className="text-[10px] text-yellow-400">{jobProgress.message}</p>
+            )}
+          </div>
+        )}
+
+        {/* Job-level actions */}
         <div className="border-t border-border-dark pt-4 flex justify-end items-center">
           <div className="flex gap-2">
-            {activeChunks.some(c => c.status === 'error') && !loading && (
+            {loading && (
               <button
-                onClick={handleRetry}
+                onClick={handleCancel}
                 className="px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-red-500/20"
               >
-                Thử lại đoạn lỗi
+                <XCircle className="w-4 h-4" />
+                Hủy
               </button>
             )}
             <button
-              disabled={!text.trim() || loading || !googleKeyExists}
+              disabled={!text.trim() || loading || !googleAuthAvailable}
               onClick={handleGenerate}
-              className={`px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all cursor-pointer ${!text.trim() || loading || !googleKeyExists ? 'bg-gray-800 text-gray-600 cursor-not-allowed shadow-none' : 'bg-primary hover:bg-primary-hover text-white shadow-primary/20'}`}
+              className={`px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all cursor-pointer ${!text.trim() || loading || !googleAuthAvailable ? 'bg-gray-800 text-gray-600 cursor-not-allowed shadow-none' : 'bg-primary hover:bg-primary-hover text-white shadow-primary/20'}`}
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {isGenerating ? `Đang tạo đoạn ${currentChunkIndex + 1}/${activeChunks.length}...` : 'Đang ghép file...'}
+                  Đang tạo audio...
                 </>
               ) : (
                 <>
                   <Mic className="w-4 h-4" />
-                  {activeChunks.length > 0 && activeChunks.every(c => c.status === 'success') ? 'Tạo lại từ đầu' : 'Tạo giọng đọc (TTS)'}
+                  {result ? 'Tạo lại từ đầu' : 'Tạo giọng đọc (TTS)'}
                 </>
               )}
             </button>
@@ -741,11 +789,11 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
         </div>
 
         {/* Key warnings */}
-        {!googleKeyExists && (
+        {!googleAuthAvailable && (
           <div className="bg-red-950/20 border border-red-500/15 text-red-400 text-xs p-4 rounded-xl flex items-start gap-2.5">
             <AlertTriangle className="w-4.5 h-4.5 shrink-0 text-red-500 mt-0.5" />
             <span>
-              <strong>Cảnh báo:</strong> Google Cloud API Key chưa được cài đặt. Vui lòng vào màn hình **Cài đặt** để nhập khóa API trước khi thực hiện tổng hợp giọng nói.
+              <strong>Cảnh báo:</strong> Chưa cấu hình Google Cloud OAuth hoặc service-account credentials. Vui lòng mở Cài đặt trước khi tổng hợp giọng nói.
             </span>
           </div>
         )}
@@ -782,8 +830,16 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                 {/* File list links */}
                 <div className="space-y-2 text-xs font-mono">
                   <div>
-                    <span className="text-gray-500 block text-[10px]">Tệp âm thanh (Voiceover MP3)</span>
-                    <span className="text-white select-all break-all block bg-bg-dark border border-border-dark/60 p-2 rounded-lg mt-1">{result.mp3Path}</span>
+                    <span className="text-gray-500 block text-[10px]">Tệp âm thanh (Voiceover {outputFormat.toUpperCase()})</span>
+                    <span className="text-white select-all break-all block bg-bg-dark border border-border-dark/60 p-2 rounded-lg mt-1">{result.outputPath}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-2 space-y-1 font-sans">
+                    <div>Engine: <span className="text-white font-mono">{result.engine}</span></div>
+                    <div>Model: <span className="text-white font-mono">{result.modelName}</span></div>
+                    <div>Voice: <span className="text-white font-mono">{result.voiceName}</span></div>
+                    {result.fallbackReason && (
+                      <div className="text-yellow-400">Fallback: {result.fallbackReason}</div>
+                    )}
                   </div>
                 </div>
 
@@ -791,23 +847,23 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                 <div className="flex flex-col gap-2 pt-2">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => handlePlayAudio(result.mp3Path)}
+                      onClick={() => result.outputPath && handlePlayAudio(result.outputPath)}
                       className="py-2.5 bg-primary/10 hover:bg-primary/25 border border-primary/20 hover:border-primary/45 text-primary-light text-[11px] font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-colors"
                     >
                       <Play className="w-3.5 h-3.5" />
                       Nghe thử
                     </button>
                     <button
-                      onClick={handleSaveMp3}
+                      onClick={handleSaveAudio}
                       className="py-2.5 bg-bg-card hover:bg-bg-dark border border-border-dark text-gray-300 hover:text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      Lưu MP3
+                      Lưu {outputFormat.toUpperCase()}
                     </button>
                   </div>
 
                   <button
-                    onClick={() => onNavigateToAligner(result.mp3Path, text)}
+                    onClick={() => result.outputPath && onNavigateToAligner(result.outputPath, text)}
                     className="w-full py-2.5 bg-accent hover:bg-accent-hover text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-accent/25 transition-colors"
                   >
                     <Volume2 className="w-3.5 h-3.5" />
