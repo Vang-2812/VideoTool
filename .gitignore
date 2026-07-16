@@ -10,6 +10,7 @@ out/
 
 # agent development caches
 .superpowers/
+.worktrees/
 scratch/
 
 # IDEs and editors
