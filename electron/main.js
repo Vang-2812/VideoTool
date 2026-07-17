@@ -8,6 +8,7 @@ import { spawn, exec } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { alignScriptAndWhisper } from './whisperAligner.js';
 import { groupWordsByScriptSentences } from '../shared/scriptSentenceParser.js';
+import { srtToTimestampText } from '../shared/timestampConverter.js';
 import { parseStoryboardDirectory } from './fileParser.js';
 import { renderStoryboardToVideo, cancelActiveRender } from './videoRenderer.js';
 import { readAudioDuration } from './audioMetadata.js';
@@ -1385,15 +1386,22 @@ ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, 
       srtContent += `${cue.word || cue.text}\n\n`;
     });
 
-    // Tạo file SRT tạm
+    // Tạo file SRT & TXT tạm
     const tempDir = app.getPath('temp');
-    const srtPath = path.join(tempDir, `aligned_${Date.now()}.srt`);
+    const timestamp = Date.now();
+    const srtPath = path.join(tempDir, `aligned_${timestamp}.srt`);
     await fs.writeFile(srtPath, srtContent, 'utf-8');
+
+    const txtContent = srtToTimestampText(srtContent);
+    const txtPath = path.join(tempDir, `aligned_${timestamp}.txt`);
+    await fs.writeFile(txtPath, txtContent, 'utf-8');
 
     return {
       success: true,
       srtPath,
       srtContent,
+      txtPath,
+      txtContent,
       matchRate
     };
 
