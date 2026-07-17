@@ -190,7 +190,7 @@ export default function VerticalConvertScreen() {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1 overflow-hidden min-h-0 pt-3">
         
         {/* Left Config Panel (3/5 cols) */}
-        <div className="md:col-span-3 bg-bg-panel border border-border-dark p-4 rounded-2xl shadow-lg flex flex-col justify-between overflow-y-auto space-y-3 max-h-full min-h-0">
+        <div className="md:col-span-3 bg-bg-panel border border-border-dark p-4 rounded-2xl shadow-lg flex flex-col justify-between overflow-y-auto space-y-3 max-h-full min-h-0 signature-top-indicator">
           
           <div className="space-y-3">
             {/* Select Video & SRT (Grid) */}
@@ -323,7 +323,7 @@ export default function VerticalConvertScreen() {
                         max="80"
                         value={titleFontSize}
                         onChange={(e) => setTitleFontSize(parseInt(e.target.value, 10))}
-                        className="w-full accent-primary bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+                        className="w-full custom-slider cursor-pointer"
                       />
                     </div>
                     {/* Position Y */}
@@ -339,7 +339,7 @@ export default function VerticalConvertScreen() {
                         step="0.5"
                         value={titleYPercent}
                         onChange={(e) => setTitleYPercent(parseFloat(e.target.value))}
-                        className="w-full accent-primary bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+                        className="w-full custom-slider cursor-pointer"
                       />
                     </div>
                   </div>
@@ -352,14 +352,14 @@ export default function VerticalConvertScreen() {
                         type="color"
                         value={titleColor}
                         onChange={(e) => setTitleColor(e.target.value)}
-                        className="w-6 h-6 rounded border border-border-dark bg-transparent cursor-pointer shrink-0 p-0"
+                        className="w-6 h-6 rounded-md border border-border-dark bg-transparent cursor-pointer shrink-0 p-0"
                       />
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1.5">
                         {['#FFFFFF', '#FFFF00', '#FF5555', '#55FF55', '#55FFFF'].map(c => (
                           <button
                             key={c}
                             onClick={() => setTitleColor(c)}
-                            className={`w-4 h-4 rounded-full border transition-transform cursor-pointer ${titleColor.toLowerCase() === c.toLowerCase() ? 'border-primary scale-110' : 'border-transparent hover:scale-105'}`}
+                            className={`w-5 h-5 rounded-lg border-2 transition-all cursor-pointer ${titleColor.toLowerCase() === c.toLowerCase() ? 'border-primary shadow-sm shadow-primary/40 scale-110' : 'border-border-dark hover:border-gray-400'}`}
                             style={{ backgroundColor: c }}
                             title={c}
                           />
@@ -383,7 +383,7 @@ export default function VerticalConvertScreen() {
                         max="80"
                         value={subtitleFontSize}
                         onChange={(e) => setSubtitleFontSize(parseInt(e.target.value, 10))}
-                        className="w-full accent-accent bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+                        className="w-full custom-slider cursor-pointer"
                       />
                     </div>
                     {/* Position MarginV */}
@@ -399,8 +399,32 @@ export default function VerticalConvertScreen() {
                         step="10"
                         value={subtitleMarginV}
                         onChange={(e) => setSubtitleMarginV(parseInt(e.target.value, 10))}
-                        className="w-full accent-accent bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+                        className="w-full custom-slider cursor-pointer"
                       />
+                    </div>
+                  </div>
+
+                  {/* Subtitle Color selector */}
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] text-gray-400 font-semibold block">Màu phụ đề</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={subtitleColor}
+                        onChange={(e) => setSubtitleColor(e.target.value)}
+                        className="w-6 h-6 rounded-md border border-border-dark bg-transparent cursor-pointer shrink-0 p-0"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        {['#FFFF00', '#FFFFFF', '#FF5555', '#55FF55', '#55FFFF'].map(c => (
+                          <button
+                            key={c}
+                            onClick={() => setSubtitleColor(c)}
+                            className={`w-5 h-5 rounded-lg border-2 transition-all cursor-pointer ${subtitleColor.toLowerCase() === c.toLowerCase() ? 'border-accent shadow-sm shadow-accent/40 scale-110' : 'border-border-dark hover:border-gray-400'}`}
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
 
