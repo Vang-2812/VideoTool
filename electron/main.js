@@ -1104,16 +1104,22 @@ async function runWhisperLogic(audioPath, useCloud) {
       }
 
     } else {
-      const wavPath = audioPath.replace(/\.mp3$/i, '_16k.wav');
+      const wavPath = audioPath.toLowerCase().endsWith('_16k.wav')
+        ? audioPath
+        : (audioPath.toLowerCase().endsWith('.wav')
+            ? audioPath.replace(/\.wav$/i, '_16k.wav')
+            : audioPath.replace(/\.[^/.]+$/, "") + '_16k.wav');
       const jsonPath = wavPath + '.json';
 
-      const convertCmd = `"${ffmpegStatic}" -i "${audioPath}" -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}" -y`;
-      await new Promise((resolve, reject) => {
-        exec(convertCmd, (err) => {
-          if (err) reject(err);
-          else resolve();
+      if (wavPath !== audioPath) {
+        const convertCmd = `"${ffmpegStatic}" -i "${audioPath}" -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}" -y`;
+        await new Promise((resolve, reject) => {
+          exec(convertCmd, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
-      });
+      }
 
       const whisperCmd = `"${WHISPER_EXE}" -m "${MODEL_FILE}" -f "${wavPath}" -oj -ml 1`;
       await new Promise((resolve, reject) => {
