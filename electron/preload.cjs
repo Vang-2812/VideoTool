@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   translateSegments: (params) => ipcRenderer.invoke('translate-segments', params),
   renderReupVideo: (params) => ipcRenderer.invoke('render-reup-video', params),
   extractVideoSpeech: (params) => ipcRenderer.invoke('extract-video-speech', params),
+  generateReupVoiceover: (params) => ipcRenderer.invoke('reup-generate-voiceover', params),
   
   setupWhisper: () => ipcRenderer.invoke('setup-whisper'),
   checkWhisperSetup: () => ipcRenderer.invoke('check-whisper-setup'),
@@ -94,5 +95,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, value) => callback(value);
     ipcRenderer.on('vertical-convert-progress', listener);
     return () => ipcRenderer.removeListener('vertical-convert-progress', listener);
+  },
+  onReupRenderProgress: (callback) => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('reup-render-progress', listener);
+    return () => ipcRenderer.removeListener('reup-render-progress', listener);
   }
 });

@@ -254,6 +254,11 @@ declare global {
     }) => Promise<{ success: boolean; segments?: { id: number; start: number; end: number; original: string; translated: string }[]; error?: string }>;
     renderReupVideo: (params: any) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
     extractVideoSpeech: (params: { videoPath: string; useCloud: boolean }) => Promise<{ success: boolean; segments?: any[]; error?: string }>;
+    generateReupVoiceover: (params: {
+      segments: any[];
+      targetLang: string;
+      voiceName: string;
+    }) => Promise<{ success: boolean; voiceoverSegments?: { path: string; start: number }[]; error?: string }>;
 
     // Whisper APIs
     setupWhisper: () => Promise<{ success: boolean; error?: string }>;
@@ -283,6 +288,7 @@ declare global {
     onRenderProgress: (callback: (payload: RenderProgress) => void) => () => void;
     onRenderComplete: (callback: (payload: RenderResult) => void) => () => void;
     onVerticalConvertProgress: (callback: (payload: { progress: number; eta: string }) => void) => () => void;
+    onReupRenderProgress: (callback: (payload: { progress: number; eta: string }) => void) => () => void;
   }
 
   interface Window {

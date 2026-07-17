@@ -1627,11 +1627,67 @@ ipcMain.handle('extract-video-speech', async (_, { videoPath, useCloud }) => {
   }
 });
 
-ipcMain.handle('render-reup-video', async (_, params) => {
+ipcMain.handle('reup-generate-voiceover', async (_, { segments, targetLang, voiceName }) => {
+  const tempDir = app.getPath('temp');
+  const timestamp = Date.now();
+  const voiceoverSegments = [];
+
+  try {
+    let languageCode = 'vi-VN';
+    if (targetLang === 'en') languageCode = 'en-US';
+    else if (targetLang === 'zh') languageCode = 'cmn-CN';
+    else if (targetLang === 'ja') languageCode = 'ja-JP';
+    else if (targetLang === 'ko') languageCode = 'ko-KR';
+
+    const orchestrator = initializeTtsJobOrchestrator();
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!seg.translated) continue;
+
+      const segOutputPath = path.join(tempDir, `reup_tts_${timestamp}_${i}.mp3`);
+      const ttsResult = await orchestrator.run({
+        mode: 'stable',
+        text: seg.translated,
+        languageCode,
+        speaker: voiceName || 'Aoede',
+        voiceName: voiceName || 'Aoede',
+        speakingRate: 1,
+        outputPath: segOutputPath,
+        outputFormat: 'mp3'
+      }, {
+        signal: new AbortController().signal
+      });
+
+      if (ttsResult.success) {
+        voiceoverSegments.push({
+          path: segOutputPath,
+          start: seg.start
+        });
+      } else {
+        console.error(`Failed to generate TTS for segment ${i}:`, ttsResult.error);
+      }
+    }
+
+    return { success: true, voiceoverSegments };
+  } catch (err) {
+    console.error('Reup generate voiceover error:', err);
+    return { success: false, error: err.message || 'Lỗi hệ thống khi tạo giọng đọc lồng tiếng.' };
+  }
+});
+
+ipcMain.handle('render-reup-video', async (event, params) => {
   let tempSubPath = null;
   let tempAssPath = null;
   try {
     const finalParams = { ...params };
+
+    // Get video duration for progress tracking
+    let totalDuration = 0;
+    try {
+      totalDuration = await getVideoDuration(params.videoPath);
+    } catch (e) {
+      console.warn('Failed to read video duration for progress tracking:', e);
+    }
 
     if (params.showSubtitles && params.segments && params.segments.length > 0) {
       const tempDir = app.getPath('temp');
@@ -1663,9 +1719,50 @@ ipcMain.handle('render-reup-video', async (_, params) => {
     const args = buildReupFFmpegArgs(finalParams);
     await new Promise((resolve, reject) => {
       const ffmpegProcess = spawn(ffmpegStatic, args);
+      let buffer = '';
+
+      ffmpegProcess.stderr.on('data', (data) => {
+        const str = data.toString();
+        buffer += str;
+        const lines = buffer.split('\r');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const timeMatch = line.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+          if (timeMatch && totalDuration > 0) {
+            const hh = parseInt(timeMatch[1], 10);
+            const mm = parseInt(timeMatch[2], 10);
+            const ss = parseInt(timeMatch[3], 10);
+            const ms = parseInt(timeMatch[4], 10);
+            const currentTime = hh * 3600 + mm * 60 + ss + ms / 100;
+            const progress = Math.min(99, Math.floor((currentTime / totalDuration) * 100));
+
+            const speedMatch = line.match(/speed=\s*([\d\.]+)x/);
+            let eta = '--:--';
+            if (speedMatch && parseFloat(speedMatch[1]) > 0) {
+              const speed = parseFloat(speedMatch[1]);
+              const secondsRemaining = (totalDuration - currentTime) / speed;
+              if (secondsRemaining > 0) {
+                const m = Math.floor(secondsRemaining / 60);
+                const s = Math.floor(secondsRemaining % 60);
+                eta = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+              } else {
+                eta = '00:00';
+              }
+            }
+
+            event.sender.send('reup-render-progress', { progress, eta });
+          }
+        }
+      });
+
       ffmpegProcess.on('close', (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`FFmpeg reup render exited with code ${code}`));
+        if (code === 0) {
+          event.sender.send('reup-render-progress', { progress: 100, eta: '00:00' });
+          resolve();
+        } else {
+          reject(new Error(`FFmpeg reup render exited with code ${code}`));
+        }
       });
       ffmpegProcess.on('error', reject);
     });
@@ -1680,6 +1777,13 @@ ipcMain.handle('render-reup-video', async (_, params) => {
     }
     if (tempAssPath) {
       try { await fs.unlink(tempAssPath); } catch {}
+    }
+    if (params.voiceoverSegments && params.voiceoverSegments.length > 0) {
+      for (const seg of params.voiceoverSegments) {
+        if (seg.path) {
+          try { await fs.unlink(seg.path); } catch {}
+        }
+      }
     }
   }
 });
