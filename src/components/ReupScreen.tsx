@@ -60,6 +60,24 @@ export default function ReupScreen() {
   // Execution State
   const [isRendering, setIsRendering] = useState(false);
   const [result, setResult] = useState<{ success: boolean; outputPath?: string; error?: string } | null>(null);
+  const [autoStatus, setAutoStatus] = useState<string | null>(null);
+
+  // Load settings on mount
+  useEffect(() => {
+    const savedProvider = localStorage.getItem('reup_provider');
+    const savedApiKey = localStorage.getItem('reup_api_key');
+    const savedEndpoint = localStorage.getItem('reup_endpoint_url');
+    if (savedProvider) setProvider(savedProvider as any);
+    if (savedApiKey) setApiKey(savedApiKey);
+    if (savedEndpoint) setEndpointUrl(savedEndpoint);
+  }, []);
+
+  // Save settings when they change
+  useEffect(() => {
+    localStorage.setItem('reup_provider', provider);
+    localStorage.setItem('reup_api_key', apiKey);
+    localStorage.setItem('reup_endpoint_url', endpointUrl);
+  }, [provider, apiKey, endpointUrl]);
 
   const handleSelectVideo = async () => {
     try {
@@ -87,14 +105,19 @@ export default function ReupScreen() {
     if (!videoFile) return;
     setIsExtracting(true);
     try {
-      // Mock segments extraction / Whisper STT call
-      const mockSegments = [
-        { id: 1, start: 1.0, end: 4.5, text: 'Welcome to this amazing video.' },
-        { id: 2, start: 5.0, end: 9.2, text: 'Today we will explore modern tech.' }
-      ];
+      const isCloud = provider === 'openai';
+      const whisperRes = await window.electronAPI.extractVideoSpeech({
+        videoPath: videoFile.path,
+        useCloud: isCloud
+      });
+
+      if (!whisperRes.success || !whisperRes.segments) {
+        alert(whisperRes.error || 'Lỗi khi trích xuất giọng nói từ video.');
+        return;
+      }
 
       const res = await window.electronAPI.translateSegments({
-        segments: mockSegments,
+        segments: whisperRes.segments,
         sourceLang,
         targetLang,
         provider,
@@ -111,6 +134,69 @@ export default function ReupScreen() {
       alert('Lỗi: ' + err.message);
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const handleAutoComplete = async () => {
+    if (!videoFile) return;
+    setAutoStatus('Đang trích xuất giọng nói từ video (Bước 1/3)...');
+    try {
+      const isCloud = provider === 'openai';
+      const whisperRes = await window.electronAPI.extractVideoSpeech({
+        videoPath: videoFile.path,
+        useCloud: isCloud
+      });
+
+      if (!whisperRes.success || !whisperRes.segments) {
+        alert(whisperRes.error || 'Lỗi khi trích xuất giọng nói.');
+        setAutoStatus(null);
+        return;
+      }
+
+      setAutoStatus('Đang dịch thuật kịch bản bằng AI (Bước 2/3)...');
+      const transRes = await window.electronAPI.translateSegments({
+        segments: whisperRes.segments,
+        sourceLang,
+        targetLang,
+        provider,
+        apiKey,
+        endpointUrl
+      });
+
+      if (!transRes.success || !transRes.segments) {
+        alert(transRes.error || 'Lỗi khi dịch thuật.');
+        setAutoStatus(null);
+        return;
+      }
+      setSegments(transRes.segments);
+
+      setAutoStatus('Vui lòng chọn nơi lưu tệp video kết quả (Bước 3/3)...');
+      const savePath = await window.electronAPI.selectSavePath('reup_video.mp4');
+      if (!savePath) {
+        setAutoStatus(null);
+        return;
+      }
+
+      setAutoStatus('Đang render video reup hoàn chỉnh...');
+      const renderRes = await window.electronAPI.renderReupVideo({
+        videoPath: videoFile.path,
+        blurMask,
+        enableVignette,
+        enableFlip,
+        enableZoom,
+        bgmAudioPath: bgmFile?.path,
+        bgmVolume,
+        outputPath: savePath,
+        segments: transRes.segments,
+        showSubtitles,
+        subtitlePos
+      });
+
+      setResult(renderRes);
+    } catch (err: any) {
+      alert('Lỗi khi tự động hoàn thành: ' + err.message);
+    } finally {
+      setAutoStatus(null);
     }
   };
 
@@ -134,7 +220,10 @@ export default function ReupScreen() {
         enableZoom,
         bgmAudioPath: bgmFile?.path,
         bgmVolume,
-        outputPath: savePath
+        outputPath: savePath,
+        segments,
+        showSubtitles,
+        subtitlePos
       });
 
       setResult(res);
@@ -357,8 +446,9 @@ export default function ReupScreen() {
           <label className="text-xs font-semibold text-gray-400 block">Nhạc nền (BGM)</label>
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleSelectBgm}
-              className="px-3 py-1.5 bg-bg-card hover:bg-bg-dark border border-border-dark text-gray-300 text-xs rounded-lg flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 bg-bg-card hover:bg-bg-dark border border-border-dark text-gray-300 text-xs rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
             >
               <Music className="w-3.5 h-3.5" />
               Chọn Nhạc
@@ -367,24 +457,95 @@ export default function ReupScreen() {
               <span className="text-[11px] text-gray-400 font-mono truncate">{bgmFile ? bgmFile.name : 'Không dùng BGM'}</span>
             </div>
           </div>
+          {bgmFile && (
+            <div className="space-y-1 pt-1.5 animate-in fade-in duration-200">
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-gray-500 font-semibold">Âm lượng BGM</span>
+                <span className="font-mono text-primary font-bold">{Math.round(bgmVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={bgmVolume}
+                onChange={(e) => setBgmVolume(parseFloat(e.target.value))}
+                className="w-full custom-slider cursor-pointer"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Render Button */}
-        <div className="pt-2 border-t border-border-dark">
+        {/* Subtitle Configuration */}
+        <div className="space-y-2.5 pt-2 border-t border-border-dark/60">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-semibold text-gray-400">Hiển thị phụ đề dịch</label>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showSubtitles}
+                onChange={(e) => setShowSubtitles(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-bg-dark border border-border-dark rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white"></div>
+            </label>
+          </div>
+
+          {showSubtitles && (
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <label className="text-[11px] font-medium text-gray-500 block">Vị trí hiển thị phụ đề</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['bottom', 'center', 'top'] as const).map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => setSubtitlePos(pos)}
+                    className={`py-1.5 px-2.5 rounded-lg border text-xs font-bold capitalize transition-all cursor-pointer ${subtitlePos === pos ? 'bg-primary/10 border-primary text-white font-black' : 'bg-bg-card border-border-dark text-gray-400'}`}
+                  >
+                    {pos === 'bottom' ? 'Dưới' : pos === 'center' ? 'Giữa' : 'Trên'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Render & Auto Buttons */}
+        <div className="pt-3 border-t border-border-dark space-y-2">
+          {/* One-Click Auto-Complete Button */}
           <button
-            disabled={!videoFile || isRendering}
+            disabled={!videoFile || isRendering || !!autoStatus || isExtracting}
+            onClick={handleAutoComplete}
+            className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${!videoFile || isRendering || !!autoStatus || isExtracting ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-accent hover:bg-accent-hover text-white shadow-accent/20'}`}
+          >
+            {autoStatus ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{autoStatus}</span>
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4" />
+                Tự Động Hoàn Tất (1-Click Auto)
+              </>
+            )}
+          </button>
+
+          {/* Manual Step 2 Render Button */}
+          <button
+            disabled={!videoFile || isRendering || !!autoStatus || isExtracting}
             onClick={handleRenderReup}
-            className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${!videoFile || isRendering ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-primary hover:bg-primary-hover text-white shadow-primary/20'}`}
+            className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-border-dark transition-all cursor-pointer ${!videoFile || isRendering || !!autoStatus || isExtracting ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-bg-card hover:bg-bg-dark text-gray-300'}`}
           >
             {isRendering ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Đang Render Video Reup...
               </>
             ) : (
               <>
-                <Video className="w-4 h-4" />
-                Render Video Reup Hoàn Chỉnh
+                <Video className="w-3.5 h-3.5" />
+                Render Thủ Công (Bước 2)
               </>
             )}
           </button>
