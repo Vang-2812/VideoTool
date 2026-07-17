@@ -13,6 +13,7 @@ export function buildReupFFmpegArgs({
   enableFlip,
   enableZoom,
   voiceoverAudioPath,
+  voiceoverSegments,
   bgmAudioPath,
   bgmVolume = 0.3,
   outputPath,
@@ -23,6 +24,8 @@ export function buildReupFFmpegArgs({
   let nextInputIdx = 1;
   let voiceoverInputIdx = -1;
   let bgmInputIdx = -1;
+  let voiceoverStartIdx = -1;
+  let voiceoverCount = 0;
 
   if (voiceoverAudioPath) {
     args.push('-i', voiceoverAudioPath);
@@ -31,6 +34,14 @@ export function buildReupFFmpegArgs({
   if (bgmAudioPath) {
     args.push('-i', bgmAudioPath);
     bgmInputIdx = nextInputIdx++;
+  }
+  if (voiceoverSegments && voiceoverSegments.length > 0) {
+    voiceoverStartIdx = nextInputIdx;
+    voiceoverCount = voiceoverSegments.length;
+    voiceoverSegments.forEach(seg => {
+      args.push('-i', seg.path);
+      nextInputIdx++;
+    });
   }
 
   const filtergraph = [];
@@ -80,14 +91,36 @@ export function buildReupFFmpegArgs({
 
   // 4. Audio mixing
   let hasAudioFilter = false;
-  if (voiceoverInputIdx !== -1 && bgmInputIdx !== -1) {
-    filtergraph.push(`[${voiceoverInputIdx}:a][${bgmInputIdx}:a]amix=inputs=2:duration=first:weights=1.0 ${bgmVolume}[aout]`);
-    hasAudioFilter = true;
+  let voiceoverLabel = '';
+
+  if (voiceoverCount > 0) {
+    const delayedLabels = [];
+    for (let i = 0; i < voiceoverCount; i++) {
+      const seg = voiceoverSegments[i];
+      const delayMs = Math.round(seg.start * 1000);
+      const inputLabel = `[${voiceoverStartIdx + i}:a]`;
+      const outLabel = `[voseg_${i}]`;
+      filtergraph.push(`${inputLabel}adelay=${delayMs}|${delayMs}${outLabel}`);
+      delayedLabels.push(outLabel);
+    }
+    
+    if (voiceoverCount === 1) {
+      voiceoverLabel = delayedLabels[0];
+    } else {
+      filtergraph.push(`${delayedLabels.join('')}amix=inputs=${voiceoverCount}:duration=longest[voiceover_mixed]`);
+      voiceoverLabel = '[voiceover_mixed]';
+    }
   } else if (voiceoverInputIdx !== -1) {
-    filtergraph.push(`[${voiceoverInputIdx}:a]volume=1.0[aout]`);
+    voiceoverLabel = `[${voiceoverInputIdx}:a]`;
+  }
+
+  if (voiceoverLabel && bgmInputIdx !== -1) {
+    filtergraph.push(`${voiceoverLabel}[${bgmInputIdx}:a]amix=inputs=2:duration=first:weights=1.0 ${bgmVolume}[aout]`);
+    hasAudioFilter = true;
+  } else if (voiceoverLabel) {
+    filtergraph.push(`${voiceoverLabel}volume=1.0[aout]`);
     hasAudioFilter = true;
   } else if (bgmInputIdx !== -1) {
-    // If we have BGM but no voiceover, mix BGM with original video's audio [0:a]
     filtergraph.push(`[0:a][${bgmInputIdx}:a]amix=inputs=2:duration=first:weights=1.0 ${bgmVolume}[aout]`);
     hasAudioFilter = true;
   }
