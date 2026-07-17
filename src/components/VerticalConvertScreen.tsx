@@ -54,7 +54,7 @@ export default function VerticalConvertScreen() {
 
   const handleSelectVideo = async () => {
     try {
-      const res = await window.electronAPI.selectRelinkFile(['mp4']);
+      const res = await window.electronAPI.selectVideoFile();
       if (res) {
         setVideoFile(res);
         // Automatically default title to video file name (without extension)

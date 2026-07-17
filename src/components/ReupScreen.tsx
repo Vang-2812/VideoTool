@@ -63,7 +63,7 @@ export default function ReupScreen() {
 
   const handleSelectVideo = async () => {
     try {
-      const res = await window.electronAPI.selectAudioFile(); // reused file picker dialog
+      const res = await window.electronAPI.selectVideoFile();
       if (res) {
         setVideoFile(res);
       }
