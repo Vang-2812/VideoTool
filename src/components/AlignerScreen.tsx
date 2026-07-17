@@ -192,7 +192,7 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
       
       {/* Left Column: Aligner Configuration (3/5 cols) */}
-      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5">
+      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5 signature-top-indicator">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
           <Volume2 className="w-4 h-4 text-primary" />
           Tạo Phụ Đề (Forced Aligner / Speech-to-Text)
@@ -226,7 +226,7 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
               type="checkbox"
               checked={transcribeOnly}
               onChange={(e) => setTranscribeOnly(e.target.checked)}
-              className="w-4 h-4 accent-primary rounded cursor-pointer"
+              className="custom-checkbox-input"
             />
             <span className="text-xs text-gray-300 font-medium">
               Tự động nhận diện phụ đề (Không cần nhập Script kịch bản)
@@ -385,10 +385,71 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
         )}
       </div>
 
-      {/* Right Column: Results Output (2/5 cols) */}
+      {/* Right Column: Results & Status Info (2/5 cols) */}
       <div className="lg:col-span-2 space-y-6">
+
+        {/* Default Whisper Status & Guide Card when no output yet */}
+        {!result && !error && (
+          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 signature-top-indicator">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-border-dark pb-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-accent" />
+              Trạng Thái Giải Mã & Hướng Dẫn
+            </h3>
+
+            {/* Local Whisper Status Card */}
+            <div className="bg-bg-dark border border-border-dark p-4 rounded-xl space-y-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-white">
+                <span className={`w-2.5 h-2.5 rounded-full ${whisperReady ? 'bg-accent animate-pulse' : 'bg-yellow-500'}`}></span>
+                Bộ giải mã Whisper Local (ggml-base)
+              </div>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                {whisperReady
+                  ? 'Đã sẵn sàng hoạt động offline trên máy tính mà không cần kết nối mạng internet.'
+                  : 'Chưa tìm thấy bộ cài offline. Nhấn nút bên dưới để tải về (~140MB).'}
+              </p>
+
+              {!whisperReady && !useCloud && (
+                isSettingUpWhisper ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-gray-300">
+                      <span>{setupStatus}</span>
+                      <span className="font-mono">{setupPercent}%</span>
+                    </div>
+                    <div className="w-full bg-bg-dark rounded-full h-2 overflow-hidden border border-border-dark">
+                      <div
+                        style={{ width: `${setupPercent}%` }}
+                        className="bg-accent h-full rounded-full transition-all duration-300"
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSetupWhisper}
+                    className="w-full py-2.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-accent/25 transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Tải cài đặt Whisper Local
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Instructions list */}
+            <div className="space-y-2.5 text-xs text-gray-400 leading-relaxed pt-1">
+              <div className="bg-bg-dark border border-border-dark p-3 rounded-xl space-y-1">
+                <span className="font-semibold text-white block">Tùy chọn Từng câu (Sentence)</span>
+                <p className="text-[11px]">Gộp các từ khớp với kịch bản văn bản thành câu hoàn chỉnh 1-đến-1.</p>
+              </div>
+              <div className="bg-bg-dark border border-border-dark p-3 rounded-xl space-y-1">
+                <span className="font-semibold text-white block">Tùy chọn Từng từ (Word)</span>
+                <p className="text-[11px]">Mỗi từ hiển thị mốc thời gian riêng cho các hiệu ứng karaoke/doodle.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {(result || error) && (
-          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250">
+          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250 signature-top-indicator">
             <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-border-dark pb-2">
               Kết quả căn lề (Output)
             </h3>
