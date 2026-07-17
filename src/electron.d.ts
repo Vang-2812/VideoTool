@@ -184,6 +184,7 @@ declare global {
     selectSavePath: (defaultPath?: string) => Promise<string | null>;
     readAudioDuration: (filePath: string) => Promise<{ success: boolean; duration?: number; error?: string }>;
     selectAudioFile: () => Promise<{ path: string; name: string } | null>;
+    selectVideoFile: () => Promise<{ path: string; name: string } | null>;
     selectSfxFiles: () => Promise<{ path: string; name: string }[] | null>;
     
     // Project management APIs

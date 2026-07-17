@@ -169,6 +169,21 @@ ipcMain.handle('select-audio-file', async () => {
   };
 });
 
+ipcMain.handle('select-video-file', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Video Files', extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'flv', 'wmv'] }],
+    title: 'Chọn tệp Video nguồn'
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const filePath = result.filePaths[0];
+  return {
+    path: filePath,
+    name: path.basename(filePath)
+  };
+});
+
 ipcMain.handle('select-sfx-files', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFileFromTemp: (params) => ipcRenderer.invoke('save-file-from-temp', params),
   readAudioDuration: (filePath) => ipcRenderer.invoke('read-audio-duration', filePath),
   selectAudioFile: () => ipcRenderer.invoke('select-audio-file'),
+  selectVideoFile: () => ipcRenderer.invoke('select-video-file'),
   selectSfxFiles: () => ipcRenderer.invoke('select-sfx-files'),
   
   // Project management APIs
