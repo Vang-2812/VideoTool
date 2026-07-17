@@ -50,6 +50,10 @@ export default function VideoMaskCanvas({ videoUrl, mask, onChange }: VideoMaskC
     setIsDragging(false);
   };
 
+  const formattedUrl = videoUrl.startsWith('file://') || videoUrl.startsWith('http')
+    ? videoUrl
+    : `file:///${videoUrl.replace(/\\/g, '/')}`;
+
   return (
     <div
       ref={containerRef}
@@ -58,7 +62,7 @@ export default function VideoMaskCanvas({ videoUrl, mask, onChange }: VideoMaskC
       onMouseUp={handleMouseUp}
       className="relative w-full aspect-[9/16] max-h-[360px] bg-black rounded-xl overflow-hidden cursor-crosshair border border-border-dark select-none"
     >
-      <video src={videoUrl} className="w-full h-full object-contain pointer-events-none" controls={false} />
+      <video src={formattedUrl} className="w-full h-full object-contain pointer-events-none" controls={false} />
 
       {/* Bounding Box Overlay */}
       {mask.w > 0 && (
