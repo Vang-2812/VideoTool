@@ -33,6 +33,34 @@ interface Segment {
   translated: string;
 }
 
+const REUP_VOICES: Record<string, { id: string; label: string; gender: string }[]> = {
+  vi: [
+    { id: 'Aoede', label: 'Aoede (Giọng Nữ thanh, Truyền cảm)', gender: 'female' },
+    { id: 'Charon', label: 'Charon (Giọng Nam trầm, Điềm đạm)', gender: 'male' },
+    { id: 'Puck', label: 'Puck (Giọng Nam ấm, Tự nhiên)', gender: 'male' }
+  ],
+  en: [
+    { id: 'Aoede', label: 'Aoede (Female - Clear & Expressive)', gender: 'female' },
+    { id: 'Charon', label: 'Charon (Male - Deep & Calm)', gender: 'male' },
+    { id: 'Puck', label: 'Puck (Male - Warm & Natural)', gender: 'male' }
+  ],
+  zh: [
+    { id: 'Aoede', label: 'Aoede (Female - Standard Chinese)', gender: 'female' },
+    { id: 'Charon', label: 'Charon (Male - Standard Chinese)', gender: 'male' },
+    { id: 'Puck', label: 'Puck (Male - Natural Warm)', gender: 'male' }
+  ],
+  ja: [
+    { id: 'Aoede', label: 'Aoede (Female - Clear Japanese)', gender: 'female' },
+    { id: 'Charon', label: 'Charon (Male - Calming Japanese)', gender: 'male' },
+    { id: 'Puck', label: 'Puck (Male - Natural Japanese)', gender: 'male' }
+  ],
+  ko: [
+    { id: 'Aoede', label: 'Aoede (Female - Clear Korean)', gender: 'female' },
+    { id: 'Charon', label: 'Charon (Male - Calming Korean)', gender: 'male' },
+    { id: 'Puck', label: 'Puck (Male - Natural Korean)', gender: 'male' }
+  ]
+};
+
 export default function ReupScreen() {
   const [videoFile, setVideoFile] = useState<{ path: string; name: string } | null>(null);
   const [sourceLang, setSourceLang] = useState('en');
@@ -56,20 +84,29 @@ export default function ReupScreen() {
   const [bgmVolume, setBgmVolume] = useState(0.3);
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [subtitlePos, setSubtitlePos] = useState<'bottom' | 'center' | 'top'>('bottom');
+  const [enableTts, setEnableTts] = useState(false);
+  const [ttsVoice, setTtsVoice] = useState('Aoede');
 
   // Execution State
   const [isRendering, setIsRendering] = useState(false);
   const [result, setResult] = useState<{ success: boolean; outputPath?: string; error?: string } | null>(null);
   const [autoStatus, setAutoStatus] = useState<string | null>(null);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderEta, setRenderEta] = useState('--:--');
 
   // Load settings on mount
   useEffect(() => {
     const savedProvider = localStorage.getItem('reup_provider');
     const savedApiKey = localStorage.getItem('reup_api_key');
     const savedEndpoint = localStorage.getItem('reup_endpoint_url');
+    const savedEnableTts = localStorage.getItem('reup_enable_tts') === 'true';
+    const savedTtsVoice = localStorage.getItem('reup_tts_voice');
+
     if (savedProvider) setProvider(savedProvider as any);
     if (savedApiKey) setApiKey(savedApiKey);
     if (savedEndpoint) setEndpointUrl(savedEndpoint);
+    setEnableTts(savedEnableTts);
+    if (savedTtsVoice) setTtsVoice(savedTtsVoice);
   }, []);
 
   // Save settings when they change
@@ -77,7 +114,33 @@ export default function ReupScreen() {
     localStorage.setItem('reup_provider', provider);
     localStorage.setItem('reup_api_key', apiKey);
     localStorage.setItem('reup_endpoint_url', endpointUrl);
-  }, [provider, apiKey, endpointUrl]);
+    localStorage.setItem('reup_enable_tts', String(enableTts));
+    localStorage.setItem('reup_tts_voice', ttsVoice);
+  }, [provider, apiKey, endpointUrl, enableTts, ttsVoice]);
+
+  // Adjust default voice if target language changes
+  useEffect(() => {
+    const voices = REUP_VOICES[targetLang] || [];
+    if (voices.length > 0 && !voices.some(v => v.id === ttsVoice)) {
+      setTtsVoice(voices[0].id);
+    }
+  }, [targetLang]);
+
+  // Listen to render progress
+  useEffect(() => {
+    if (isRendering || autoStatus) {
+      const unsubscribe = window.electronAPI.onReupRenderProgress((data) => {
+        setRenderProgress(data.progress);
+        setRenderEta(data.eta);
+      });
+      return () => {
+        unsubscribe();
+      };
+    } else {
+      setRenderProgress(0);
+      setRenderEta('--:--');
+    }
+  }, [isRendering, autoStatus]);
 
   const handleSelectVideo = async () => {
     try {
@@ -170,6 +233,23 @@ export default function ReupScreen() {
       }
       setSegments(transRes.segments);
 
+      let voiceoverSegments = undefined;
+      if (enableTts && transRes.segments.length > 0) {
+        setAutoStatus('Đang tạo giọng đọc lồng tiếng AI (TTS)...');
+        const voiceoverRes = await window.electronAPI.generateReupVoiceover({
+          segments: transRes.segments,
+          targetLang,
+          voiceName: ttsVoice
+        });
+        if (voiceoverRes.success && voiceoverRes.voiceoverSegments) {
+          voiceoverSegments = voiceoverRes.voiceoverSegments;
+        } else {
+          alert('Lỗi tạo giọng đọc lồng tiếng AI: ' + (voiceoverRes.error || 'Unknown error'));
+          setAutoStatus(null);
+          return;
+        }
+      }
+
       setAutoStatus('Vui lòng chọn nơi lưu tệp video kết quả (Bước 3/3)...');
       const savePath = await window.electronAPI.selectSavePath('reup_video.mp4');
       if (!savePath) {
@@ -189,7 +269,8 @@ export default function ReupScreen() {
         outputPath: savePath,
         segments: transRes.segments,
         showSubtitles,
-        subtitlePos
+        subtitlePos,
+        voiceoverSegments
       });
 
       setResult(renderRes);
@@ -206,6 +287,22 @@ export default function ReupScreen() {
     setResult(null);
 
     try {
+      let voiceoverSegments = undefined;
+      if (enableTts && segments.length > 0) {
+        const voiceoverRes = await window.electronAPI.generateReupVoiceover({
+          segments,
+          targetLang,
+          voiceName: ttsVoice
+        });
+        if (voiceoverRes.success && voiceoverRes.voiceoverSegments) {
+          voiceoverSegments = voiceoverRes.voiceoverSegments;
+        } else {
+          alert('Lỗi tạo giọng đọc lồng tiếng AI: ' + (voiceoverRes.error || 'Unknown error'));
+          setIsRendering(false);
+          return;
+        }
+      }
+
       const savePath = await window.electronAPI.selectSavePath('reup_video.mp4');
       if (!savePath) {
         setIsRendering(false);
@@ -223,7 +320,8 @@ export default function ReupScreen() {
         outputPath: savePath,
         segments,
         showSubtitles,
-        subtitlePos
+        subtitlePos,
+        voiceoverSegments
       });
 
       setResult(res);
@@ -509,6 +607,58 @@ export default function ReupScreen() {
             </div>
           )}
         </div>
+
+        {/* TTS Dubbing Configuration */}
+        <div className="space-y-2.5 pt-2 border-t border-border-dark/60">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-semibold text-gray-400">Lồng tiếng AI (TTS)</label>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableTts}
+                onChange={(e) => setEnableTts(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-bg-dark border border-border-dark rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary peer-checked:after:bg-white"></div>
+            </label>
+          </div>
+
+          {enableTts && (
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <label className="text-[11px] font-medium text-gray-500 block">Giọng đọc lồng tiếng ({targetLang.toUpperCase()})</label>
+              <select
+                value={ttsVoice}
+                onChange={(e) => setTtsVoice(e.target.value)}
+                className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+              >
+                {(REUP_VOICES[targetLang] || []).map((voice) => (
+                  <option key={voice.id} value={voice.id}>
+                    {voice.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Progress Bar */}
+        {(isRendering || autoStatus === 'Đang render video reup hoàn chỉnh...') && (
+          <div className="space-y-1.5 animate-in fade-in duration-200 bg-bg-dark border border-border-dark p-3.5 rounded-xl">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                Đang render video...
+              </span>
+              <span className="font-mono text-primary font-bold">{renderProgress}% (Còn lại: {renderEta})</span>
+            </div>
+            <div className="w-full h-2.5 bg-bg-panel border border-border-dark rounded-full overflow-hidden">
+              <div
+                style={{ width: `${renderProgress}%` }}
+                className="h-full bg-primary rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Render & Auto Buttons */}
         <div className="pt-3 border-t border-border-dark space-y-2">
