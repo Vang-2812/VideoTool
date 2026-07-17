@@ -243,6 +243,15 @@ declare global {
     validateSrt: (filePath: string) => Promise<{ valid: boolean; errorCount: number; errors: string[] }>;
     cancelVerticalConvert: () => Promise<boolean>;
     getVideoDuration: (filePath: string) => Promise<{ success: boolean; duration?: number; error?: string }>;
+    translateSegments: (params: {
+      segments: { id: number; start: number; end: number; text: string }[];
+      sourceLang: string;
+      targetLang: string;
+      provider: 'gemini' | 'openai' | 'deepseek';
+      apiKey: string;
+      endpointUrl?: string;
+    }) => Promise<{ success: boolean; segments?: { id: number; start: number; end: number; original: string; translated: string }[]; error?: string }>;
+    renderReupVideo: (params: any) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
 
     // Whisper APIs
     setupWhisper: () => Promise<{ success: boolean; error?: string }>;

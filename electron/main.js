@@ -9,6 +9,8 @@ import ffmpegStatic from 'ffmpeg-static';
 import { alignScriptAndWhisper } from './whisperAligner.js';
 import { groupWordsByScriptSentences } from '../shared/scriptSentenceParser.js';
 import { srtToTimestampText } from '../shared/timestampConverter.js';
+import { translateSegments } from './translators/translatorFactory.js';
+import { buildReupFFmpegArgs } from './reupRenderer.js';
 import { parseStoryboardDirectory } from './fileParser.js';
 import { renderStoryboardToVideo, cancelActiveRender } from './videoRenderer.js';
 import { readAudioDuration } from './audioMetadata.js';
@@ -1538,5 +1540,34 @@ ipcMain.handle('concat-audio-only', async (event, { tempPaths, finalOutputPath }
   } catch (err) {
     console.error('Concat audio only error:', err);
     return { success: false, error: err.message || 'Lỗi hệ thống khi ghép audio.' };
+  }
+});
+
+ipcMain.handle('translate-segments', async (_, params) => {
+  try {
+    const translatedSegments = await translateSegments(params);
+    return { success: true, segments: translatedSegments };
+  } catch (err) {
+    console.error('Translate segments error:', err);
+    return { success: false, error: err.message || 'Lỗi khi dịch thuật kịch bản.' };
+  }
+});
+
+ipcMain.handle('render-reup-video', async (_, params) => {
+  try {
+    const args = buildReupFFmpegArgs(params);
+    await new Promise((resolve, reject) => {
+      const ffmpegProcess = spawn(ffmpegStatic, args);
+      ffmpegProcess.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`FFmpeg reup render exited with code ${code}`));
+      });
+      ffmpegProcess.on('error', reject);
+    });
+
+    return { success: true, outputPath: params.outputPath };
+  } catch (err) {
+    console.error('Render reup video error:', err);
+    return { success: false, error: err.message || 'Lỗi hệ thống khi render video reup.' };
   }
 });

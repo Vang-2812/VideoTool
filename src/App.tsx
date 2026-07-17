@@ -13,6 +13,7 @@ import TtsScreen from './components/TtsScreen';
 import AppSettingsScreen from './components/AppSettingsScreen';
 import AlignerScreen from './components/AlignerScreen';
 import VerticalConvertScreen from './components/VerticalConvertScreen';
+import ReupScreen from './components/ReupScreen';
 import logoUrl from './logo.svg';
 import { 
   Film, 
@@ -25,7 +26,8 @@ import {
   Volume2,
   Settings,
   Mic,
-  Smartphone
+  Smartphone,
+  Video
 } from 'lucide-react';
 
 const STEPS: { id: Step; label: string }[] = [
@@ -50,7 +52,7 @@ function MainLayout() {
     setStep 
   } = useProject();
 
-  const [activeModule, setActiveModule] = useState<'storyboard' | 'tts' | 'aligner' | 'settings' | 'vertical'>('storyboard');
+  const [activeModule, setActiveModule] = useState<'storyboard' | 'tts' | 'aligner' | 'settings' | 'vertical' | 'reup'>('storyboard');
   const [sharedTtsOutput, setSharedTtsOutput] = useState<{ audioPath: string; scriptText: string } | null>(null);
 
   useEffect(() => {
@@ -195,6 +197,9 @@ function MainLayout() {
     if (activeModule === 'vertical') {
       return <VerticalConvertScreen />;
     }
+    if (activeModule === 'reup') {
+      return <ReupScreen />;
+    }
     if (activeModule === 'settings') {
       return <AppSettingsScreen />;
     }
@@ -279,6 +284,13 @@ function MainLayout() {
             >
               <Smartphone className="w-3.5 h-3.5" />
               Convert Dọc 9:16
+            </button>
+            <button
+              onClick={() => setActiveModule('reup')}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${activeModule === 'reup' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <Video className="w-3.5 h-3.5" />
+              Reup Video
             </button>
             <button
               onClick={() => setActiveModule('settings')}

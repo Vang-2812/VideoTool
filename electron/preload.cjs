@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   validateSrt: (filePath) => ipcRenderer.invoke('validate-srt', filePath),
   cancelVerticalConvert: () => ipcRenderer.invoke('cancel-vertical-convert'),
   getVideoDuration: (filePath) => ipcRenderer.invoke('get-video-duration', filePath),
+  translateSegments: (params) => ipcRenderer.invoke('translate-segments', params),
+  renderReupVideo: (params) => ipcRenderer.invoke('render-reup-video', params),
   
   setupWhisper: () => ipcRenderer.invoke('setup-whisper'),
   checkWhisperSetup: () => ipcRenderer.invoke('check-whisper-setup'),
