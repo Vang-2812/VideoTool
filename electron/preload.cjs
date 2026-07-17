@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVideoDuration: (filePath) => ipcRenderer.invoke('get-video-duration', filePath),
   translateSegments: (params) => ipcRenderer.invoke('translate-segments', params),
   renderReupVideo: (params) => ipcRenderer.invoke('render-reup-video', params),
+  extractVideoSpeech: (params) => ipcRenderer.invoke('extract-video-speech', params),
   
   setupWhisper: () => ipcRenderer.invoke('setup-whisper'),
   checkWhisperSetup: () => ipcRenderer.invoke('check-whisper-setup'),

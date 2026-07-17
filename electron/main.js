@@ -11,6 +11,7 @@ import { groupWordsByScriptSentences } from '../shared/scriptSentenceParser.js';
 import { srtToTimestampText } from '../shared/timestampConverter.js';
 import { translateSegments } from './translators/translatorFactory.js';
 import { buildReupFFmpegArgs } from './reupRenderer.js';
+import { convertSrtToAss } from './verticalSubtitles.js';
 import { parseStoryboardDirectory } from './fileParser.js';
 import { renderStoryboardToVideo, cancelActiveRender } from './videoRenderer.js';
 import { readAudioDuration } from './audioMetadata.js';
@@ -1568,9 +1569,92 @@ ipcMain.handle('translate-segments', async (_, params) => {
   }
 });
 
-ipcMain.handle('render-reup-video', async (_, params) => {
+function segmentsToSrt(segments) {
+  return segments.map((seg, index) => {
+    const startStr = formatSrtTime(seg.start);
+    const endStr = formatSrtTime(seg.end);
+    return `${index + 1}\n${startStr} --> ${endStr}\n${seg.translated || seg.text}\n`;
+  }).join('\n');
+}
+
+ipcMain.handle('extract-video-speech', async (_, { videoPath, useCloud }) => {
   try {
-    const args = buildReupFFmpegArgs(params);
+    const tempDir = app.getPath('temp');
+    const wavPath = path.join(tempDir, `extract_${Date.now()}_16k.wav`);
+    
+    // Extract audio from video
+    const convertCmd = `"${ffmpegStatic}" -i "${videoPath}" -vn -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}" -y`;
+    await new Promise((resolve, reject) => {
+      exec(convertCmd, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Run Whisper logic
+    const whisperResult = await runWhisperLogic(wavPath, useCloud);
+    
+    // Clean up temp files
+    try {
+      await fs.unlink(wavPath);
+      const jsonPath = wavPath + '.json';
+      await fs.unlink(jsonPath);
+    } catch {}
+
+    if (!whisperResult.success || !whisperResult.words) {
+      return { success: false, error: whisperResult.error || 'Lỗi khi nhận diện giọng nói.' };
+    }
+
+    const grouped = groupWordsIntoSentences(whisperResult.words);
+    const segments = grouped.map((s, idx) => ({
+      id: idx + 1,
+      start: s.start,
+      end: s.end,
+      text: s.text,
+      translated: ''
+    }));
+
+    return { success: true, segments };
+  } catch (err) {
+    console.error('Extract video speech error:', err);
+    return { success: false, error: err.message || 'Lỗi hệ thống khi trích xuất giọng nói.' };
+  }
+});
+
+ipcMain.handle('render-reup-video', async (_, params) => {
+  let tempSubPath = null;
+  let tempAssPath = null;
+  try {
+    const finalParams = { ...params };
+
+    if (params.showSubtitles && params.segments && params.segments.length > 0) {
+      const tempDir = app.getPath('temp');
+      const timestamp = Date.now();
+      tempSubPath = path.join(tempDir, `reup_sub_${timestamp}.srt`);
+      
+      const srtContent = segmentsToSrt(params.segments);
+      await fs.writeFile(tempSubPath, srtContent, 'utf-8');
+      
+      tempAssPath = tempSubPath.replace(/\.srt$/i, '.ass');
+      let marginV = 100;
+      if (params.subtitlePos === 'center') {
+        marginV = 960;
+      } else if (params.subtitlePos === 'top') {
+        marginV = 1700;
+      }
+
+      await convertSrtToAss({
+        srtPath: tempSubPath,
+        assPath: tempAssPath,
+        subtitleFontSize: 54,
+        subtitleColor: '#FFFF00',
+        subtitleMarginV: marginV
+      });
+
+      finalParams.subtitleAssPath = tempAssPath;
+    }
+
+    const args = buildReupFFmpegArgs(finalParams);
     await new Promise((resolve, reject) => {
       const ffmpegProcess = spawn(ffmpegStatic, args);
       ffmpegProcess.on('close', (code) => {
@@ -1584,5 +1668,12 @@ ipcMain.handle('render-reup-video', async (_, params) => {
   } catch (err) {
     console.error('Render reup video error:', err);
     return { success: false, error: err.message || 'Lỗi hệ thống khi render video reup.' };
+  } finally {
+    if (tempSubPath) {
+      try { await fs.unlink(tempSubPath); } catch {}
+    }
+    if (tempAssPath) {
+      try { await fs.unlink(tempAssPath); } catch {}
+    }
   }
 });

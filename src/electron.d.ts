@@ -253,6 +253,7 @@ declare global {
       endpointUrl?: string;
     }) => Promise<{ success: boolean; segments?: { id: number; start: number; end: number; original: string; translated: string }[]; error?: string }>;
     renderReupVideo: (params: any) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
+    extractVideoSpeech: (params: { videoPath: string; useCloud: boolean }) => Promise<{ success: boolean; segments?: any[]; error?: string }>;
 
     // Whisper APIs
     setupWhisper: () => Promise<{ success: boolean; error?: string }>;
