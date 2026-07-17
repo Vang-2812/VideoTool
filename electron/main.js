@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { spawn, exec } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { alignScriptAndWhisper } from './whisperAligner.js';
+import { groupWordsByScriptSentences } from '../shared/scriptSentenceParser.js';
 import { parseStoryboardDirectory } from './fileParser.js';
 import { renderStoryboardToVideo, cancelActiveRender } from './videoRenderer.js';
 import { readAudioDuration } from './audioMetadata.js';
@@ -1273,12 +1274,13 @@ ipcMain.handle('concat-and-align', async (event, { tempPaths, finalOutputPath, f
 
     // 4. Align Script và xuất SRT
     const alignment = alignScriptAndWhisper(fullText, whisperResult.words, audioDuration);
+    const sentenceCues = groupWordsByScriptSentences(alignment.words, fullText);
 
     let srtContent = '';
-    alignment.words.forEach((w, index) => {
+    sentenceCues.forEach((w, index) => {
       srtContent += `${index + 1}\n`;
       srtContent += `${formatSrtTime(w.start)} --> ${formatSrtTime(w.end)}\n`;
-      srtContent += `${w.word}\n\n`;
+      srtContent += `${w.text || w.word}\n\n`;
     });
 
     const srtPath = finalOutputPath.replace(/\.mp3$/i, '.srt');
@@ -1368,7 +1370,11 @@ ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, 
 
     // Gộp câu nếu srtLevel là 'sentence'
     if (srtLevel === 'sentence') {
-      finalCues = groupWordsIntoSentences(finalCues);
+      if (!transcribeOnly && scriptText && scriptText.trim()) {
+        finalCues = groupWordsByScriptSentences(finalCues, scriptText.trim());
+      } else {
+        finalCues = groupWordsIntoSentences(finalCues);
+      }
     }
 
     // Tạo nội dung file SRT
