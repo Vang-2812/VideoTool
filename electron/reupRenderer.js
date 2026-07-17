@@ -48,7 +48,7 @@ export function buildReupFFmpegArgs({
     
     const hasMoreFilters = enableFlip || enableVignette || enableZoom || subtitleAssPath;
     const blurOutLabel = hasMoreFilters ? '[v_blurred]' : '[vout]';
-    filtergraph.push(`[v_split2][blur]overlay=x=iw*${x}:y=ih*${y}${blurOutLabel}`);
+    filtergraph.push(`[v_split2][blur]overlay=x=main_w*${x}:y=main_h*${y}${blurOutLabel}`);
     curr_v = blurOutLabel;
   }
 
