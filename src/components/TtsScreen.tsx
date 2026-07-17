@@ -11,7 +11,8 @@ import {
   Download,
   Info,
   Play,
-  XCircle
+  XCircle,
+  Sparkles
 } from 'lucide-react';
 import { chunkTextForTTS } from '../utils/ttsChunker';
 import {
@@ -498,7 +499,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
 
       {/* Left: Input Text and Configurations (3/5 cols) */}
-      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5">
+      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5 signature-top-indicator">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
           <Mic className="w-4 h-4 text-primary" />
           Tạo Giọng Đọc (TTS)
@@ -723,7 +724,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                 step="0.05"
                 value={speakingRate}
                 onChange={(e) => setSpeakingRate(parseFloat(e.target.value))}
-                className="w-full accent-primary bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+                className="w-full custom-slider cursor-pointer"
               />
             </div>
           </div>
@@ -803,12 +804,36 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
 
       </div>
 
-      {/* Right: Results (2/5 cols) */}
+      {/* Right: Results & Guide Card (2/5 cols) */}
       <div className="lg:col-span-2 space-y-6">
+
+        {/* Default Guide Card when no output yet */}
+        {!result && !error && (
+          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 signature-top-indicator">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-border-dark pb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent" />
+              Hướng Dẫn & Xem Trước Output
+            </h3>
+            <div className="space-y-3 text-xs text-gray-400 leading-relaxed">
+              <div className="bg-bg-dark border border-border-dark p-3.5 rounded-xl space-y-2">
+                <span className="font-semibold text-white block">1. Chọn Chế độ & Giọng đọc</span>
+                <p className="text-[11px]">Chế độ <strong>Stable (Chirp 3 HD)</strong> phù hợp cho đọc truyện, văn bản dài với âm thanh tự nhiên nhất.</p>
+              </div>
+              <div className="bg-bg-dark border border-border-dark p-3.5 rounded-xl space-y-2">
+                <span className="font-semibold text-white block">2. Tùy chỉnh Tốc độ & Định dạng</span>
+                <p className="text-[11px]">Xuất ra tệp <strong>MP3 (256 kbps)</strong> cho dung lượng gọn nhẹ hoặc <strong>WAV (Lossless PCM)</strong> cho chất lượng tốt nhất.</p>
+              </div>
+              <div className="bg-bg-dark border border-border-dark p-3.5 rounded-xl space-y-2">
+                <span className="font-semibold text-white block">3. Chuyển tiếp sang Tạo phụ đề</span>
+                <p className="text-[11px]">Sau khi tạo audio xong, bấm nút <em>"Tạo phụ đề từ Audio này"</em> để tự động tạo file phụ đề SRT khớp 100%.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Results output */}
         {(result || error) && (
-          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250">
+          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250 signature-top-indicator">
             <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-border-dark pb-2">
               Kết quả xuất (Output)
             </h3>
