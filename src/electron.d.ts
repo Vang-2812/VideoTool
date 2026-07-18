@@ -220,6 +220,7 @@ declare global {
       useCloud: boolean;
       transcribeOnly: boolean;
       srtLevel: 'word' | 'sentence';
+      splitExtendedPunctuation?: boolean;
     }) => Promise<{ success: boolean; srtPath?: string; srtContent?: string; matchRate?: number; error?: string }>;
     convertToVertical: (params: {
       sourceVideoPath: string;

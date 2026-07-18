@@ -23,6 +23,7 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
   const [useCloud, setUseCloud] = useState(false);
   const [transcribeOnly, setTranscribeOnly] = useState(false);
   const [srtLevel, setSrtLevel] = useState<'word' | 'sentence'>('sentence');
+  const [splitExtendedPunctuation, setSplitExtendedPunctuation] = useState(false);
 
   // States
   const [openaiKeyExists, setOpenaiKeyExists] = useState(false);
@@ -52,7 +53,13 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
   // Load key existence & whisper status on mount
   useEffect(() => {
     checkSetup();
+    const savedSplitPunct = localStorage.getItem('aligner_split_extended_punct') === 'true';
+    setSplitExtendedPunctuation(savedSplitPunct);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('aligner_split_extended_punct', String(splitExtendedPunctuation));
+  }, [splitExtendedPunctuation]);
 
   const checkSetup = async () => {
     try {
@@ -151,7 +158,8 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
         scriptText: transcribeOnly ? '' : text.trim(),
         useCloud,
         transcribeOnly,
-        srtLevel
+        srtLevel,
+        splitExtendedPunctuation
       });
 
       if (alignRes.success) {
@@ -291,6 +299,18 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
               </div>
             </button>
           </div>
+
+          {srtLevel === 'sentence' && !transcribeOnly && (
+            <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer mt-2 pl-1 select-none">
+              <input
+                type="checkbox"
+                checked={splitExtendedPunctuation}
+                onChange={(e) => setSplitExtendedPunctuation(e.target.checked)}
+                className="w-4 h-4 accent-primary rounded cursor-pointer"
+              />
+              <span>Tách thêm câu theo dấu phẩy (,) và dấu nháy (', ")</span>
+            </label>
+          )}
         </div>
 
         {/* Decoder Options */}

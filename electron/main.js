@@ -1351,7 +1351,7 @@ function groupWordsIntoSentences(words, maxWords = 8, maxCharLength = 40, maxSil
   return sentences;
 }
 
-ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, useCloud, transcribeOnly, srtLevel }) => {
+ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, useCloud, transcribeOnly, srtLevel, splitExtendedPunctuation }) => {
   try {
     if (!audioPath) {
       return { success: false, error: 'Đường dẫn tệp audio không hợp lệ.' };
@@ -1396,7 +1396,7 @@ ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, 
     // Gộp câu nếu srtLevel là 'sentence'
     if (srtLevel === 'sentence') {
       if (!transcribeOnly && scriptText && scriptText.trim()) {
-        finalCues = groupWordsByScriptSentences(finalCues, scriptText.trim());
+        finalCues = groupWordsByScriptSentences(finalCues, scriptText.trim(), { splitExtendedPunctuation });
       } else {
         finalCues = groupWordsIntoSentences(finalCues);
       }
@@ -1659,9 +1659,26 @@ ipcMain.handle('reup-generate-voiceover', async (_, { segments, targetLang, voic
       });
 
       if (ttsResult.success) {
+        let duration = 2.0;
+        try {
+          duration = await readAudioDuration(segOutputPath);
+        } catch (e) {
+          console.warn(`Could not read audio duration for segment ${i}:`, e.message);
+        }
+
+        let start = seg.start;
+        if (voiceoverSegments.length > 0) {
+          const lastSeg = voiceoverSegments[voiceoverSegments.length - 1];
+          const lastEndTime = lastSeg.start + lastSeg.duration;
+          if (start < lastEndTime + 0.1) {
+            start = lastEndTime + 0.1;
+          }
+        }
+
         voiceoverSegments.push({
           path: segOutputPath,
-          start: seg.start
+          start: start,
+          duration: duration
         });
       } else {
         console.error(`Failed to generate TTS for segment ${i}:`, ttsResult.error);
@@ -1708,7 +1725,7 @@ ipcMain.handle('render-reup-video', async (event, params) => {
       await convertSrtToAss({
         srtPath: tempSubPath,
         assPath: tempAssPath,
-        subtitleFontSize: 54,
+        subtitleFontSize: params.subtitleFontSize || 54,
         subtitleColor: '#FFFF00',
         subtitleMarginV: marginV
       });
