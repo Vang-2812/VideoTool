@@ -16,6 +16,8 @@ export function buildReupFFmpegArgs({
   voiceoverSegments,
   bgmAudioPath,
   bgmVolume = 0.3,
+  ttsVolume = 1.0,
+  muteOriginalAudio = false,
   outputPath,
   subtitleAssPath
 }) {
@@ -105,23 +107,41 @@ export function buildReupFFmpegArgs({
     }
     
     if (voiceoverCount === 1) {
-      voiceoverLabel = delayedLabels[0];
+      filtergraph.push(`${delayedLabels[0]}volume=${ttsVolume}[voiceover_mixed]`);
+      voiceoverLabel = '[voiceover_mixed]';
     } else {
-      filtergraph.push(`${delayedLabels.join('')}amix=inputs=${voiceoverCount}:duration=longest[voiceover_mixed]`);
+      filtergraph.push(`${delayedLabels.join('')}amix=inputs=${voiceoverCount}:duration=longest:normalize=0,volume=${ttsVolume}[voiceover_mixed]`);
       voiceoverLabel = '[voiceover_mixed]';
     }
   } else if (voiceoverInputIdx !== -1) {
-    voiceoverLabel = `[${voiceoverInputIdx}:a]`;
+    filtergraph.push(`[${voiceoverInputIdx}:a]volume=${ttsVolume}[voiceover_mixed]`);
+    voiceoverLabel = `[voiceover_mixed]`;
   }
 
-  if (voiceoverLabel && bgmInputIdx !== -1) {
-    filtergraph.push(`${voiceoverLabel}[${bgmInputIdx}:a]amix=inputs=2:duration=first:weights=1.0 ${bgmVolume}[aout]`);
+  const mixInputs = [];
+  const mixWeights = [];
+  
+  if (!muteOriginalAudio) {
+    mixInputs.push('[0:a]');
+    mixWeights.push('1.0');
+  }
+  
+  if (voiceoverLabel) {
+    mixInputs.push(voiceoverLabel);
+    mixWeights.push('1.0');
+  }
+  
+  if (bgmInputIdx !== -1) {
+    mixInputs.push(`[${bgmInputIdx}:a]`);
+    mixWeights.push(bgmVolume.toString());
+  }
+
+  if (mixInputs.length > 1) {
+    const mixDuration = mixInputs.includes('[0:a]') ? 'first' : 'longest';
+    filtergraph.push(`${mixInputs.join('')}amix=inputs=${mixInputs.length}:duration=${mixDuration}:dropout_transition=0:weights=${mixWeights.join(' ')}[aout]`);
     hasAudioFilter = true;
-  } else if (voiceoverLabel) {
-    filtergraph.push(`${voiceoverLabel}volume=1.0[aout]`);
-    hasAudioFilter = true;
-  } else if (bgmInputIdx !== -1) {
-    filtergraph.push(`[0:a][${bgmInputIdx}:a]amix=inputs=2:duration=first:weights=1.0 ${bgmVolume}[aout]`);
+  } else if (mixInputs.length === 1 && mixInputs[0] !== '[0:a]') {
+    filtergraph.push(`${mixInputs[0]}volume=1.0[aout]`);
     hasAudioFilter = true;
   }
 
@@ -140,8 +160,8 @@ export function buildReupFFmpegArgs({
     // Map audio stream
     if (hasAudioFilter) {
       args.push('-map', '[aout]');
-    } else {
-      args.push('-map', '0:a?');
+    } else if (!muteOriginalAudio) {
+      args.push('-map', '0:a');
     }
   } else {
     // No filters at all, map original streams

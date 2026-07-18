@@ -124,18 +124,40 @@ export function mapScriptToSrtTimestamps(scriptText, srtContent, options = {}) {
     }
 
     const words = trimmed.split(/\s+/).filter(Boolean);
-    const firstWordClean = words[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const cleanWordsInLine = words.map(w => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean);
+    if (cleanWordsInLine.length === 0) {
+      resultLines.push(trimmed);
+      continue;
+    }
+
+    const firstWordClean = cleanWordsInLine[0];
     let matchedMs = null;
+    let matchK = -1;
 
     for (let k = srtIndex; k < srtCues.length; k++) {
       if (srtCues[k].cleanWord === firstWordClean) {
         matchedMs = srtCues[k].startMs;
-        srtIndex = k + 1;
+        matchK = k;
         break;
       }
     }
 
     if (matchedMs !== null) {
+      // Advance srtIndex past the matched paragraph to prevent overlapping matches
+      let p = matchK;
+      for (const cw of cleanWordsInLine) {
+        let found = false;
+        for (let lookahead = 0; lookahead < 4 && p + lookahead < srtCues.length; lookahead++) {
+          if (srtCues[p + lookahead].cleanWord === cw) {
+            p = p + lookahead + 1;
+            found = true;
+            break;
+          }
+        }
+      }
+      // Ensure we advance at least by 1 (the first word)
+      srtIndex = Math.max(matchK + 1, p);
+
       const tsTag = formatMsTimestamp(matchedMs, includeMs);
       resultLines.push(`${tsTag} ${trimmed}`);
     } else {

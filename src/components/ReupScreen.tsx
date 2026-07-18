@@ -86,6 +86,9 @@ export default function ReupScreen() {
   const [subtitlePos, setSubtitlePos] = useState<'bottom' | 'center' | 'top'>('bottom');
   const [enableTts, setEnableTts] = useState(false);
   const [ttsVoice, setTtsVoice] = useState('Aoede');
+  const [ttsVolume, setTtsVolume] = useState(1.0);
+  const [muteOriginalAudio, setMuteOriginalAudio] = useState(false);
+  const [subtitleFontSize, setSubtitleFontSize] = useState(54);
 
   // Execution State
   const [isRendering, setIsRendering] = useState(false);
@@ -101,12 +104,18 @@ export default function ReupScreen() {
     const savedEndpoint = localStorage.getItem('reup_endpoint_url');
     const savedEnableTts = localStorage.getItem('reup_enable_tts') === 'true';
     const savedTtsVoice = localStorage.getItem('reup_tts_voice');
+    const savedTtsVolume = localStorage.getItem('reup_tts_volume');
+    const savedMuteOriginal = localStorage.getItem('reup_mute_original');
+    const savedSubSize = localStorage.getItem('reup_subtitle_size');
 
     if (savedProvider) setProvider(savedProvider as any);
     if (savedApiKey) setApiKey(savedApiKey);
     if (savedEndpoint) setEndpointUrl(savedEndpoint);
     setEnableTts(savedEnableTts);
     if (savedTtsVoice) setTtsVoice(savedTtsVoice);
+    if (savedTtsVolume) setTtsVolume(parseFloat(savedTtsVolume));
+    if (savedMuteOriginal) setMuteOriginalAudio(savedMuteOriginal === 'true');
+    if (savedSubSize) setSubtitleFontSize(parseInt(savedSubSize, 10));
   }, []);
 
   // Save settings when they change
@@ -116,7 +125,10 @@ export default function ReupScreen() {
     localStorage.setItem('reup_endpoint_url', endpointUrl);
     localStorage.setItem('reup_enable_tts', String(enableTts));
     localStorage.setItem('reup_tts_voice', ttsVoice);
-  }, [provider, apiKey, endpointUrl, enableTts, ttsVoice]);
+    localStorage.setItem('reup_tts_volume', ttsVolume.toString());
+    localStorage.setItem('reup_mute_original', muteOriginalAudio.toString());
+    localStorage.setItem('reup_subtitle_size', subtitleFontSize.toString());
+  }, [provider, apiKey, endpointUrl, enableTts, ttsVoice, ttsVolume, muteOriginalAudio, subtitleFontSize]);
 
   // Adjust default voice if target language changes
   useEffect(() => {
@@ -266,10 +278,13 @@ export default function ReupScreen() {
         enableZoom,
         bgmAudioPath: bgmFile?.path,
         bgmVolume,
+        ttsVolume,
+        muteOriginalAudio,
         outputPath: savePath,
         segments: transRes.segments,
         showSubtitles,
         subtitlePos,
+        subtitleFontSize,
         voiceoverSegments
       });
 
@@ -317,10 +332,13 @@ export default function ReupScreen() {
         enableZoom,
         bgmAudioPath: bgmFile?.path,
         bgmVolume,
+        ttsVolume,
+        muteOriginalAudio,
         outputPath: savePath,
         segments,
         showSubtitles,
         subtitlePos,
+        subtitleFontSize,
         voiceoverSegments
       });
 
@@ -541,7 +559,21 @@ export default function ReupScreen() {
 
         {/* Background Music & Volume Mix */}
         <div className="space-y-2 pt-2 border-t border-border-dark/60">
-          <label className="text-xs font-semibold text-gray-400 block">Nhạc nền (BGM)</label>
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-semibold text-gray-400">Âm thanh gốc của video</label>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={muteOriginalAudio}
+                onChange={(e) => setMuteOriginalAudio(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-bg-dark border border-border-dark rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500 peer-checked:after:bg-white"></div>
+            </label>
+          </div>
+          <div className="text-[10px] text-gray-500 italic mb-2">Bật để tắt tiếng gốc của video (Mute).</div>
+
+          <label className="text-xs font-semibold text-gray-400 block mt-2">Nhạc nền (BGM)</label>
           <div className="flex gap-2">
             <button
               type="button"
@@ -604,6 +636,21 @@ export default function ReupScreen() {
                   </button>
                 ))}
               </div>
+              <div className="space-y-1 mt-2">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-gray-500 font-semibold">Cỡ chữ phụ đề</span>
+                  <span className="font-mono text-primary font-bold">{subtitleFontSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="24"
+                  max="100"
+                  step="2"
+                  value={subtitleFontSize}
+                  onChange={(e) => setSubtitleFontSize(parseInt(e.target.value, 10))}
+                  className="w-full custom-slider cursor-pointer"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -637,6 +684,21 @@ export default function ReupScreen() {
                   </option>
                 ))}
               </select>
+              <div className="space-y-1 mt-2">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-gray-500 font-semibold">Âm lượng lồng tiếng</span>
+                  <span className="font-mono text-primary font-bold">{Math.round(ttsVolume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={ttsVolume}
+                  onChange={(e) => setTtsVolume(parseFloat(e.target.value))}
+                  className="w-full custom-slider cursor-pointer"
+                />
+              </div>
             </div>
           )}
         </div>
