@@ -25,6 +25,19 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
   const [srtLevel, setSrtLevel] = useState<'word' | 'sentence'>('sentence');
   const [splitExtendedPunctuation, setSplitExtendedPunctuation] = useState(false);
 
+  // Sub-tab state
+  const [subTab, setSubTab] = useState<'aligner' | 'mapper'>('aligner');
+
+  // Mapper states
+  const [mapperScript, setMapperScript] = useState('');
+  const [mapperSrtFile, setMapperSrtFile] = useState<{ path: string; name: string } | null>(null);
+  const [mapperSrtContent, setMapperSrtContent] = useState('');
+  const [mapperIncludeMs, setMapperIncludeMs] = useState(false);
+  const [mapperResult, setMapperResult] = useState('');
+  const [isMapping, setIsMapping] = useState(false);
+  const [mapperError, setMapperError] = useState<string | null>(null);
+  const [copiedMapper, setCopiedMapper] = useState(false);
+
   // States
   const [openaiKeyExists, setOpenaiKeyExists] = useState(false);
   const [whisperReady, setWhisperReady] = useState(false);
@@ -196,15 +209,125 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
     window.electronAPI.playVideo(filePath);
   };
 
+  const handleSelectSrtFile = async () => {
+    try {
+      const res = await window.electronAPI.selectRelinkFile(['srt']);
+      if (res) {
+        setMapperSrtFile(res);
+        setMapperSrtContent('');
+      }
+    } catch (err) {
+      console.error('Failed to select SRT file:', err);
+    }
+  };
+
+  const handleImportMapperScriptTxt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setMapperScript(event.target?.result as string || '');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleImportMapperSrtTxt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setMapperSrtContent(event.target?.result as string || '');
+      setMapperSrtFile({ path: '', name: file.name });
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleRunMapping = async () => {
+    if (!mapperScript.trim()) {
+      alert('Vui lòng nhập văn bản Script.');
+      return;
+    }
+    if (!mapperSrtFile && !mapperSrtContent.trim()) {
+      alert('Vui lòng chọn hoặc dán file SRT Word-level.');
+      return;
+    }
+
+    setIsMapping(true);
+    setMapperError(null);
+    setMapperResult('');
+
+    try {
+      const res = await window.electronAPI.mapScriptToSrt({
+        scriptText: mapperScript,
+        srtPath: mapperSrtFile?.path,
+        srtContent: mapperSrtContent,
+        includeMs: mapperIncludeMs
+      });
+
+      if (res.success && res.formattedText) {
+        setMapperResult(res.formattedText);
+      } else {
+        setMapperError(res.error || 'Lỗi khi mapping kịch bản với file SRT.');
+      }
+    } catch (err: any) {
+      setMapperError(err.message || 'Lỗi hệ thống khi chạy mapping.');
+    } finally {
+      setIsMapping(false);
+    }
+  };
+
+  const handleCopyMapperResult = () => {
+    if (!mapperResult) return;
+    navigator.clipboard.writeText(mapperResult);
+    setCopiedMapper(true);
+    setTimeout(() => setCopiedMapper(false), 2000);
+  };
+
+  const handleSaveMapperTxt = async () => {
+    if (!mapperResult) return;
+    const savePath = await window.electronAPI.selectSavePath('mapped_script_timestamp.txt');
+    if (savePath) {
+      const res = await window.electronAPI.saveFileFromTemp({
+        sourcePath: savePath,
+        filterName: 'Timestamp Text',
+        extension: 'txt'
+      });
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
       
-      {/* Left Column: Aligner Configuration (3/5 cols) */}
-      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5 signature-top-indicator">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
-          <Volume2 className="w-4 h-4 text-primary" />
-          Tạo Phụ Đề (Forced Aligner / Speech-to-Text)
-        </h2>
+      {/* Sub-tab Navigation */}
+      <div className="lg:col-span-5 flex border-b border-border-dark gap-3 pb-3">
+        <button
+          type="button"
+          onClick={() => setSubTab('aligner')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${subTab === 'aligner' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-bg-panel text-gray-400 border border-border-dark hover:text-white'}`}
+        >
+          <Volume2 className="w-4 h-4" />
+          Căn lề Phụ đề từ Audio (Aligner)
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab('mapper')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${subTab === 'mapper' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-bg-panel text-gray-400 border border-border-dark hover:text-white'}`}
+        >
+          <FileText className="w-4 h-4" />
+          Mapping Timestamp Script (từ File SRT)
+        </button>
+      </div>
+
+      {subTab === 'aligner' ? (
+        <div key="aligner-tab" className="lg:col-span-5 grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          {/* Left Column: Aligner Configuration (3/5 cols) */}
+          <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5 signature-top-indicator">
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
+              <Volume2 className="w-4 h-4 text-primary" />
+              Tạo Phụ Đề (Forced Aligner / Speech-to-Text)
+            </h2>
 
         {/* Audio File Selection */}
         <div className="space-y-2">
@@ -534,6 +657,177 @@ export default function AlignerScreen({ sharedTtsOutput, clearSharedTts }: Align
           </div>
         )}
       </div>
+    </div>
+  ) : (
+        <div key="mapper-tab" className="lg:col-span-5 grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          {/* Left Column: Mapper Input & Config (3/5 cols) */}
+          <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5">
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
+              <FileText className="w-4 h-4 text-primary" />
+              1. Cấu Hình Script & File SRT Word-level
+            </h2>
+
+            {/* Script Textarea Input */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-gray-400">Kịch bản văn bản (Script đã chia đoạn)</label>
+                <label className="bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  Nạp file .txt
+                  <input
+                    type="file"
+                    accept=".txt"
+                    onChange={handleImportMapperScriptTxt}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <textarea
+                placeholder="Dán kịch bản đã được phân đoạn ở đây..."
+                value={mapperScript}
+                onChange={(e) => setMapperScript(e.target.value)}
+                className="w-full bg-bg-dark border border-border-dark focus:border-primary text-white p-4 rounded-xl text-xs min-h-[160px] outline-none transition-colors font-sans leading-relaxed"
+              />
+            </div>
+
+            {/* SRT File Input */}
+            <div className="space-y-2 pt-2 border-t border-border-dark/60">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-gray-400">Tệp phụ đề Word-level (.srt)</label>
+                <label className="bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  Nạp file .srt
+                  <input
+                    type="file"
+                    accept=".srt"
+                    onChange={handleImportMapperSrtTxt}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleSelectSrtFile}
+                  className="px-4 py-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Chọn File SRT
+                </button>
+                <div className="flex-1 bg-bg-dark border border-border-dark rounded-xl px-3 py-2 flex items-center overflow-hidden">
+                  {mapperSrtFile ? (
+                    <span className="text-xs text-accent font-mono truncate">{mapperSrtFile.name}</span>
+                  ) : (
+                    <span className="text-xs text-gray-500 italic">Chưa chọn file SRT nào...</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Timestamp Format Options */}
+            <div className="space-y-2 pt-2 border-t border-border-dark/60">
+              <label className="text-xs font-semibold text-gray-400 block">Định dạng Timestamp đầu ra</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMapperIncludeMs(false)}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${!mapperIncludeMs ? 'bg-primary/10 border-primary text-white font-bold' : 'bg-bg-card border-border-dark text-gray-400'}`}
+                >
+                  <div className="text-xs font-bold flex items-center justify-between">
+                    Không có ms [00:00]
+                    {!mapperIncludeMs && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    Làm tròn: nếu ms ≥ 500ms thì +1s.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMapperIncludeMs(true)}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${mapperIncludeMs ? 'bg-primary/10 border-primary text-white font-bold' : 'bg-bg-card border-border-dark text-gray-400'}`}
+                >
+                  <div className="text-xs font-bold flex items-center justify-between">
+                    Có ms [00:00:000]
+                    {mapperIncludeMs && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    Giữ nguyên độ chính xác từng ms.
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Run Mapping Button */}
+            <div className="pt-3">
+              <button
+                type="button"
+                disabled={isMapping || !mapperScript.trim()}
+                onClick={handleRunMapping}
+                className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${isMapping || !mapperScript.trim() ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-primary hover:bg-primary-hover text-white shadow-primary/20'}`}
+              >
+                {isMapping ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang Mapping Timestamp...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    Bắt đầu Mapping Timestamp
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Output Results (2/5 cols) */}
+          <div className="lg:col-span-2 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5">
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
+              <CheckCircle2 className="w-4 h-4 text-accent" />
+              2. Kết quả Timestamp Mapped
+            </h2>
+
+            {mapperError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-start gap-2">
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{mapperError}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <textarea
+                readOnly
+                placeholder="Kết quả mapping timestamp sẽ xuất hiện ở đây..."
+                value={mapperResult}
+                className="w-full bg-bg-dark border border-border-dark text-accent font-mono p-4 rounded-xl text-xs min-h-[320px] outline-none leading-relaxed"
+              />
+            </div>
+
+            {mapperResult && (
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCopyMapperResult}
+                  className="flex-1 py-2.5 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  {copiedMapper ? 'Đã sao chép!' : 'Sao chép kết quả'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMapperTxt}
+                  className="flex-1 py-2.5 bg-accent/10 hover:bg-accent/25 border border-accent/20 hover:border-accent/45 text-accent font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Lưu file .txt
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
