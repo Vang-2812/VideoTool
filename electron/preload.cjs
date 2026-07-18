@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   concatAndAlign: (params) => ipcRenderer.invoke('concat-and-align', params),
   concatAudioOnly: (params) => ipcRenderer.invoke('concat-audio-only', params),
   alignAudioAndScript: (params) => ipcRenderer.invoke('align-audio-and-script', params),
+  mapScriptToSrt: (params) => ipcRenderer.invoke('map-script-to-srt', params),
   convertToVertical: (params) => ipcRenderer.invoke('convert-to-vertical', params),
   validateSrt: (filePath) => ipcRenderer.invoke('validate-srt', filePath),
   cancelVerticalConvert: () => ipcRenderer.invoke('cancel-vertical-convert'),

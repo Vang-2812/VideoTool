@@ -222,6 +222,12 @@ declare global {
       srtLevel: 'word' | 'sentence';
       splitExtendedPunctuation?: boolean;
     }) => Promise<{ success: boolean; srtPath?: string; srtContent?: string; matchRate?: number; error?: string }>;
+    mapScriptToSrt: (params: {
+      scriptText: string;
+      srtPath?: string;
+      srtContent?: string;
+      includeMs?: boolean;
+    }) => Promise<{ success: boolean; formattedText?: string; error?: string }>;
     convertToVertical: (params: {
       sourceVideoPath: string;
       outputPath: string;

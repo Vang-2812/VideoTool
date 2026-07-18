@@ -8,7 +8,7 @@ import { spawn, exec } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { alignScriptAndWhisper } from './whisperAligner.js';
 import { groupWordsByScriptSentences } from '../shared/scriptSentenceParser.js';
-import { srtToTimestampText } from '../shared/timestampConverter.js';
+import { srtToTimestampText, mapScriptToSrtTimestamps } from '../shared/timestampConverter.js';
 import { translateSegments } from './translators/translatorFactory.js';
 import { buildReupFFmpegArgs } from './reupRenderer.js';
 import { convertSrtToAss } from './verticalSubtitles.js';
@@ -1432,6 +1432,23 @@ ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, 
   } catch (err) {
     console.error('Align audio and script error:', err);
     return { success: false, error: err.message || 'Lỗi hệ thống khi căn lề phụ đề.' };
+  }
+});
+
+ipcMain.handle('map-script-to-srt', async (event, { scriptText, srtPath, srtContent, includeMs }) => {
+  try {
+    let content = srtContent;
+    if (!content && srtPath) {
+      content = await fs.readFile(srtPath, 'utf-8');
+    }
+    if (!content || !content.trim()) {
+      return { success: false, error: 'Tệp hoặc nội dung SRT trống hoặc không hợp lệ.' };
+    }
+    const formattedText = mapScriptToSrtTimestamps(scriptText, content, { includeMs });
+    return { success: true, formattedText };
+  } catch (err) {
+    console.error('Map script to SRT error:', err);
+    return { success: false, error: err.message || 'Lỗi khi mapping kịch bản với SRT.' };
   }
 });
 
