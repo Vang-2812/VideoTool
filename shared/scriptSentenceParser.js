@@ -6,20 +6,27 @@
  * Splits script text into distinct sentence blocks based on punctuation (. ! ?) and newlines (\n).
  * Preserves exact sentence text.
  */
-export function parseScriptSentences(scriptText) {
+export function parseScriptSentences(scriptText, options = {}) {
   if (!scriptText || !scriptText.trim()) return [];
 
   const text = scriptText.trim();
-  const rawSegments = text.split(/(?<=[.!?])|\r?\n/);
+  const regex = options.splitExtendedPunctuation
+    ? /(?<=[.!?,;:]["'”’‘“]?)|["'”’‘“]|\r?\n/
+    : /(?<=[.!?])|\r?\n/;
+
+  const rawSegments = text.split(regex);
   const sentences = [];
 
   for (const seg of rawSegments) {
     const trimmed = seg.trim();
-    if (trimmed.length > 0) {
-      sentences.push({
-        text: trimmed,
-        words: trimmed.split(/\s+/).filter(Boolean)
-      });
+    if (/[\p{L}\p{N}]/u.test(trimmed)) {
+      const words = trimmed.split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w));
+      if (words.length > 0) {
+        sentences.push({
+          text: trimmed,
+          words: words
+        });
+      }
     }
   }
 
@@ -29,8 +36,8 @@ export function parseScriptSentences(scriptText) {
 /**
  * Groups aligned words into subtitle cues matching the original script sentences 1:1.
  */
-export function groupWordsByScriptSentences(alignedWords, scriptText) {
-  const sentences = parseScriptSentences(scriptText);
+export function groupWordsByScriptSentences(alignedWords, scriptText, options = {}) {
+  const sentences = parseScriptSentences(scriptText, options);
   if (sentences.length === 0 || !alignedWords || alignedWords.length === 0) {
     return [];
   }
