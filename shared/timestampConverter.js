@@ -145,14 +145,16 @@ export function mapScriptToSrtTimestamps(scriptText, srtContent, options = {}) {
     if (matchedMs !== null) {
       // Advance srtIndex past the matched paragraph to prevent overlapping matches
       let p = matchK;
-      for (const cw of cleanWordsInLine) {
-        let found = false;
-        for (let lookahead = 0; lookahead < 4 && p + lookahead < srtCues.length; lookahead++) {
-          if (srtCues[p + lookahead].cleanWord === cw) {
-            p = p + lookahead + 1;
-            found = true;
-            break;
+      for (let i = 0; i < cleanWordsInLine.length; i++) {
+        const cw = cleanWordsInLine[i];
+        if (p < srtCues.length && srtCues[p].cleanWord === cw) {
+          if (p > matchK) {
+            // If pause between consecutive cues > 1000ms, stop advancing (likely next paragraph)
+            if (srtCues[p].startMs - srtCues[p - 1].startMs > 1000) {
+              break;
+            }
           }
+          p++;
         }
       }
       // Ensure we advance at least by 1 (the first word)
