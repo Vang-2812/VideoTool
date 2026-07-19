@@ -130,34 +130,66 @@ export function mapScriptToSrtTimestamps(scriptText, srtContent, options = {}) {
       continue;
     }
 
-    const firstWordClean = cleanWordsInLine[0];
     let matchedMs = null;
     let matchK = -1;
 
-    for (let k = srtIndex; k < srtCues.length; k++) {
-      if (srtCues[k].cleanWord === firstWordClean) {
-        matchedMs = srtCues[k].startMs;
-        matchK = k;
-        break;
+    // Robust search: require up to 3 words to match to avoid false positives on common words.
+    // Also try starting from the 1st, 2nd, or 3rd word in case the speaker skipped a word.
+    const findMatch = () => {
+      const maxStartWords = Math.min(3, cleanWordsInLine.length);
+      for (let startWordIdx = 0; startWordIdx < maxStartWords; startWordIdx++) {
+        const requiredMatches = Math.min(3, cleanWordsInLine.length - startWordIdx);
+        
+        for (let k = srtIndex; k < srtCues.length; k++) {
+          if (srtCues[k].cleanWord === cleanWordsInLine[startWordIdx]) {
+            let matches = 1;
+            let p = k + 1;
+            
+            for (let i = startWordIdx + 1; i < cleanWordsInLine.length; i++) {
+              if (matches >= requiredMatches) break;
+              let found = false;
+              for (let look = 0; look < 3 && p + look < srtCues.length; look++) {
+                if (srtCues[p + look].cleanWord === cleanWordsInLine[i]) {
+                  p = p + look + 1;
+                  matches++;
+                  found = true;
+                  break;
+                }
+              }
+            }
+            
+            if (matches >= requiredMatches) {
+              return k; // Found the strong match starting at cue k
+            }
+          }
+        }
       }
-    }
+      return -1;
+    };
 
-    if (matchedMs !== null) {
+    matchK = findMatch();
+
+    if (matchK !== -1) {
+      matchedMs = srtCues[matchK].startMs;
+
       // Advance srtIndex past the matched paragraph to prevent overlapping matches
       let p = matchK;
       for (let i = 0; i < cleanWordsInLine.length; i++) {
         const cw = cleanWordsInLine[i];
-        if (p < srtCues.length && srtCues[p].cleanWord === cw) {
-          if (p > matchK) {
-            // If pause between consecutive cues > 1000ms, stop advancing (likely next paragraph)
-            if (srtCues[p].startMs - srtCues[p - 1].startMs > 1000) {
-              break;
+        for (let look = 0; look < 4 && p + look < srtCues.length; look++) {
+          if (srtCues[p + look].cleanWord === cw) {
+            if (p + look > matchK) {
+              // If pause between consecutive matched cues > 1500ms, stop advancing
+              if (srtCues[p + look].startMs - srtCues[p + look - 1].startMs > 1500) {
+                break;
+              }
             }
+            p = p + look + 1;
+            break;
           }
-          p++;
         }
       }
-      // Ensure we advance at least by 1 (the first word)
+      // Ensure we advance at least by 1
       srtIndex = Math.max(matchK + 1, p);
 
       const tsTag = formatMsTimestamp(matchedMs, includeMs);
