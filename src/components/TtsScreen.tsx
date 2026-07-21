@@ -11,7 +11,8 @@ import {
   Download,
   Info,
   Play,
-  XCircle
+  XCircle,
+  Sparkles
 } from 'lucide-react';
 import { chunkTextForTTS } from '../utils/ttsChunker';
 import {
@@ -176,6 +177,20 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   const [voiceName, setVoiceName] = useState(initial.speaker);
   const [speakingRate, setSpeakingRate] = useState(initial.speakingRate);
   const [outputFormat, setOutputFormat] = useState<'wav' | 'mp3'>(initial.outputFormat);
+
+  const [legacyVoices, setLegacyVoices] = useState<any[]>([]);
+  const [legacyEngine, setLegacyEngine] = useState('Neural2');
+  const [isFetchingVoices, setIsFetchingVoices] = useState(false);
+
+  useEffect(() => {
+    if (mode === 'legacy' && legacyVoices.length === 0) {
+      setIsFetchingVoices(true);
+      window.electronAPI.getGoogleTtsVoices()
+        .then(setLegacyVoices)
+        .catch(err => alert('Failed to fetch voices: ' + err.message))
+        .finally(() => setIsFetchingVoices(false));
+    }
+  }, [mode]);
 
   const [profiles, setProfiles] = useState<TtsProfile[]>(() => {
     const saved = localStorage.getItem('tts_profiles');
@@ -494,11 +509,19 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   const maleVoices = activeLanguage?.voices.filter(v => v.gender === 'male') || [];
   const femaleVoices = activeLanguage?.voices.filter(v => v.gender === 'female') || [];
 
+  const availableLegacyVoices = React.useMemo(() => {
+    if (mode !== 'legacy') return [];
+    return legacyVoices.filter(v => 
+      v.languageCodes.includes(langCode) && 
+      v.name.includes(legacyEngine)
+    );
+  }, [legacyVoices, langCode, legacyEngine, mode]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
 
       {/* Left: Input Text and Configurations (3/5 cols) */}
-      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5">
+      <div className="lg:col-span-3 bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-5 signature-top-indicator">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-border-dark pb-2">
           <Mic className="w-4 h-4 text-primary" />
           Tạo Giọng Đọc (TTS)
@@ -550,7 +573,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
 
         {/* Stable is the default; Gemini remains available as experimental. */}
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => setMode('stable')}
               aria-pressed={mode === 'stable'}
@@ -563,7 +586,14 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
               aria-pressed={mode === 'expressive'}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors ${mode === 'expressive' ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300' : 'bg-bg-dark border-border-dark text-gray-500 hover:text-gray-300'}`}
             >
-              Expressive / Experimental
+              Expressive
+            </button>
+            <button
+              onClick={() => setMode('legacy')}
+              aria-pressed={mode === 'legacy'}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors ${mode === 'legacy' ? 'bg-blue-500/15 border-blue-500/40 text-blue-300' : 'bg-bg-dark border-border-dark text-gray-500 hover:text-gray-300'}`}
+            >
+              Legacy
             </button>
           </div>
 
@@ -672,7 +702,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
         )}
 
         {/* Dropdowns row */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 ${mode === 'legacy' ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-4`}>
           <div className="space-y-1">
             <span className="text-[10px] text-gray-500">Ngôn ngữ</span>
             <select
@@ -686,28 +716,54 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
             </select>
           </div>
 
-          <div className="space-y-1">
+          <div className={`space-y-1 ${mode === 'legacy' ? 'sm:col-span-2' : ''}`}>
             <span className="text-[10px] text-gray-500">Giọng đọc</span>
-            <select
-              value={voiceName}
-              onChange={(e) => setVoiceName(e.target.value)}
-              className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-            >
-              {maleVoices.length > 0 && (
-                <optgroup label="👨 Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
-                  {maleVoices.map(v => (
-                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👨 {v.label}</option>
+            {mode === 'legacy' ? (
+              <div className="flex gap-2">
+                <select
+                  value={legacyEngine}
+                  onChange={(e) => setLegacyEngine(e.target.value)}
+                  className="flex-1 bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                >
+                  <option value="Neural2">Neural2</option>
+                  <option value="Standard">Standard</option>
+                  <option value="WaveNet">WaveNet</option>
+                  <option value="Studio">Studio</option>
+                  <option value="Polyglot">Polyglot</option>
+                </select>
+                <select
+                  value={voiceName}
+                  onChange={(e) => setVoiceName(e.target.value)}
+                  className="flex-1 bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                >
+                  {isFetchingVoices ? <option>Loading...</option> : null}
+                  {availableLegacyVoices.map(v => (
+                    <option key={v.name} value={v.name}>{v.name} ({v.ssmlGender})</option>
                   ))}
-                </optgroup>
-              )}
-              {femaleVoices.length > 0 && (
-                <optgroup label="👩 Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
-                  {femaleVoices.map(v => (
-                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👩 {v.label}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+                </select>
+              </div>
+            ) : (
+              <select
+                value={voiceName}
+                onChange={(e) => setVoiceName(e.target.value)}
+                className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+              >
+                {maleVoices.length > 0 && (
+                  <optgroup label="👨 Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
+                    {maleVoices.map(v => (
+                      <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👨 {v.label}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {femaleVoices.length > 0 && (
+                  <optgroup label="👩 Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
+                    {femaleVoices.map(v => (
+                      <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👩 {v.label}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -723,7 +779,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
                 step="0.05"
                 value={speakingRate}
                 onChange={(e) => setSpeakingRate(parseFloat(e.target.value))}
-                className="w-full accent-primary bg-bg-dark h-1 rounded-lg appearance-none cursor-pointer"
+                className="w-full custom-slider cursor-pointer"
               />
             </div>
           </div>
@@ -803,12 +859,36 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
 
       </div>
 
-      {/* Right: Results (2/5 cols) */}
+      {/* Right: Results & Guide Card (2/5 cols) */}
       <div className="lg:col-span-2 space-y-6">
+
+        {/* Default Guide Card when no output yet */}
+        {!result && !error && (
+          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 signature-top-indicator">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-border-dark pb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent" />
+              Hướng Dẫn & Xem Trước Output
+            </h3>
+            <div className="space-y-3 text-xs text-gray-400 leading-relaxed">
+              <div className="bg-bg-dark border border-border-dark p-3.5 rounded-xl space-y-2">
+                <span className="font-semibold text-white block">1. Chọn Chế độ & Giọng đọc</span>
+                <p className="text-[11px]">Chế độ <strong>Stable (Chirp 3 HD)</strong> phù hợp cho đọc truyện, văn bản dài với âm thanh tự nhiên nhất.</p>
+              </div>
+              <div className="bg-bg-dark border border-border-dark p-3.5 rounded-xl space-y-2">
+                <span className="font-semibold text-white block">2. Tùy chỉnh Tốc độ & Định dạng</span>
+                <p className="text-[11px]">Xuất ra tệp <strong>MP3 (256 kbps)</strong> cho dung lượng gọn nhẹ hoặc <strong>WAV (Lossless PCM)</strong> cho chất lượng tốt nhất.</p>
+              </div>
+              <div className="bg-bg-dark border border-border-dark p-3.5 rounded-xl space-y-2">
+                <span className="font-semibold text-white block">3. Chuyển tiếp sang Tạo phụ đề</span>
+                <p className="text-[11px]">Sau khi tạo audio xong, bấm nút <em>"Tạo phụ đề từ Audio này"</em> để tự động tạo file phụ đề SRT khớp 100%.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Results output */}
         {(result || error) && (
-          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250">
+          <div className="bg-bg-panel border border-border-dark p-6 rounded-2xl shadow-lg space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250 signature-top-indicator">
             <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-border-dark pb-2">
               Kết quả xuất (Output)
             </h3>

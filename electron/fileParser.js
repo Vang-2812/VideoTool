@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-// REGEX according to FR-2.2.1 (supports storyboard_ or scene_)
-const FILE_REGEX = /^(?:storyboard|scene)_(\d{2})_(\d{2})_(\d+)\.(png|jpg|jpeg)$/i;
+// REGEX according to FR-2.2.1 (supports storyboard_ or scene_ with optional ms)
+const FILE_REGEX = /^(?:storyboard|scene)_(\d{2})_(\d{2})(?:_(\d{1,3}))?_(\d+)\.(png|jpg|jpeg)$/i;
 const DEFAULT_MIN_DURATION = 0.5; // FR-3.3.2 default (configurable)
 
 /**
@@ -15,15 +15,18 @@ export function parseFilename(filename) {
 
   const mm = parseInt(match[1], 10);
   const ss = parseInt(match[2], 10);
-  const index = parseInt(match[3], 10);
-  const ext = match[4].toLowerCase();
+  const hasMs = match[3] !== undefined;
+  const ms = hasMs ? parseInt(match[3], 10) : 0;
+  const index = parseInt(match[4], 10);
+  const ext = match[5].toLowerCase();
 
   return {
     mm,
     ss,
+    ms,
     index,
     ext,
-    startTime: mm * 60 + ss // FR-2.2.3
+    startTime: mm * 60 + ss + (ms / 1000)
   };
 }
 
@@ -170,7 +173,7 @@ export async function parseStoryboardDirectory(dirPath, totalDuration = null, mi
         if (['.png', '.jpg', '.jpeg'].includes(ext)) {
           skippedFiles.push({
             name: entry.name,
-            reason: "Tên file không đúng định dạng quy ước (scene_mm_ss_index hoặc storyboard_mm_ss_index)"
+            reason: "Tên file không đúng định dạng quy ước (scene_mm_ss_index hoặc scene_mm_ss_ms_index)"
           });
         }
       }

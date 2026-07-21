@@ -13,6 +13,8 @@ import TtsScreen from './components/TtsScreen';
 import AppSettingsScreen from './components/AppSettingsScreen';
 import AlignerScreen from './components/AlignerScreen';
 import VerticalConvertScreen from './components/VerticalConvertScreen';
+import ReupScreen from './components/ReupScreen';
+import Sidebar from './components/Sidebar';
 import logoUrl from './logo.svg';
 import { 
   Film, 
@@ -25,7 +27,8 @@ import {
   Volume2,
   Settings,
   Mic,
-  Smartphone
+  Smartphone,
+  Video
 } from 'lucide-react';
 
 const STEPS: { id: Step; label: string }[] = [
@@ -50,7 +53,7 @@ function MainLayout() {
     setStep 
   } = useProject();
 
-  const [activeModule, setActiveModule] = useState<'storyboard' | 'tts' | 'aligner' | 'settings' | 'vertical'>('storyboard');
+  const [activeModule, setActiveModule] = useState<'storyboard' | 'tts' | 'aligner' | 'settings' | 'vertical' | 'reup'>('storyboard');
   const [sharedTtsOutput, setSharedTtsOutput] = useState<{ audioPath: string; scriptText: string } | null>(null);
 
   useEffect(() => {
@@ -195,6 +198,9 @@ function MainLayout() {
     if (activeModule === 'vertical') {
       return <VerticalConvertScreen />;
     }
+    if (activeModule === 'reup') {
+      return <ReupScreen />;
+    }
     if (activeModule === 'settings') {
       return <AppSettingsScreen />;
     }
@@ -220,154 +226,112 @@ function MainLayout() {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-row h-full overflow-hidden bg-bg-dark">
       {/* Relink overlay screen */}
       {isRelinking && <RelinkScreen />}
 
-      {/* App Header */}
-      <header className="bg-bg-panel border-b border-border-dark py-3.5 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 shadow-md">
-        
-        {/* Left branding & Module Navigation */}
-        <div className="flex items-center gap-5 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <img src={logoUrl} className="w-8 h-8 rounded-lg object-contain shrink-0" alt="Logo" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xs font-bold text-white tracking-wide">Storyboard to Video Tool</h1>
-                {projectName && (
-                  <>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                    <span className="text-[11px] font-semibold text-primary-light bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/15 max-w-[150px] truncate" title={projectName}>
-                      {projectName}
-                    </span>
-                    {isUnsaved && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" title="Thay đổi chưa lưu"></span>
-                    )}
-                  </>
-                )}
-              </div>
-              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider block mt-0.5">Version 1.7 (Forced Aligner)</span>
-            </div>
-          </div>
+      {/* Left Collapsible Sidebar */}
+      <Sidebar activeModule={activeModule} onSelectModule={setActiveModule} />
 
-          {/* Module Navigation Tabs */}
-          <div className="flex bg-bg-dark border border-border-dark p-0.5 rounded-xl items-center gap-0.5 shrink-0">
-            <button
-              onClick={() => setActiveModule('storyboard')}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${activeModule === 'storyboard' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              <Film className="w-3.5 h-3.5" />
-              Dự Án
-            </button>
-            <button
-              onClick={() => setActiveModule('tts')}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${activeModule === 'tts' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              <Mic className="w-3.5 h-3.5" />
-              Tạo Giọng Đọc (TTS)
-            </button>
-            <button
-              onClick={() => setActiveModule('aligner')}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${activeModule === 'aligner' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              Tạo Phụ Đề
-            </button>
-            <button
-              onClick={() => setActiveModule('vertical')}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${activeModule === 'vertical' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              Convert Dọc 9:16
-            </button>
-            <button
-              onClick={() => setActiveModule('settings')}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${activeModule === 'settings' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Cài Đặt API
-            </button>
-          </div>
-        </div>
-
-        {/* Center: Stepper progress tracker (only shown for project flow) */}
-        {isProjectActive && activeModule === 'storyboard' && (
-          <div className="hidden lg:flex items-center gap-3">
-            {STEPS.map((s, i) => {
-              const isCompleted = i < currentIdx;
-              const isActive = i === currentIdx;
-              
-              return (
-                <React.Fragment key={s.id}>
-                  {i > 0 && (
-                    <div className={`w-6 h-0.5 ${i <= currentIdx ? 'bg-primary/50' : 'bg-border-dark'}`}></div>
-                  )}
-                  <div className="flex items-center gap-1.5">
-                    <div 
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${isActive ? 'bg-primary border-primary text-white font-black animate-pulse' : isCompleted ? 'bg-accent/15 border-accent text-accent' : 'border-border-dark text-gray-500 bg-bg-card'}`}
-                    >
-                      {i + 1}
-                    </div>
-                    <span 
-                      className={`text-[11px] font-medium transition-colors ${isActive ? 'text-white' : isCompleted ? 'text-gray-300' : 'text-gray-500'}`}
-                    >
-                      {s.label}
-                    </span>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Right: Actions menu inside workflow */}
-        <div className="flex items-center gap-3 self-end sm:self-center">
-          {isProjectActive && activeModule === 'storyboard' && (
-            <div className="flex items-center gap-2.5">
-              {showToast && (
-                <span className="text-[10px] text-green-400 font-semibold flex items-center gap-1 bg-green-950/20 border border-green-500/15 px-2 py-1 rounded-lg animate-in fade-in slide-in-from-right-3 duration-200">
-                  <Check className="w-3 h-3" />
-                  Đã lưu!
+      {/* Main Right Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Streamlined Top Header */}
+        <header className="bg-bg-panel border-b border-border-dark py-3 px-6 flex justify-between items-center shrink-0 shadow-md">
+          
+          {/* Left Breadcrumb & Project Name */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-400">Storyboard Tool</span>
+            {projectName && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                <span className="text-[11px] font-semibold text-primary-light bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20 max-w-[200px] truncate" title={projectName}>
+                  {projectName}
                 </span>
-              )}
+                {isUnsaved && (
+                  <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" title="Thay đổi chưa lưu"></span>
+                )}
+              </>
+            )}
+          </div>
 
-              <button
-                onClick={handleSaveClick}
-                className="p-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-                title="Lưu cấu hình (Save)"
-              >
-                <Save className="w-4 h-4" />
-                Lưu
-              </button>
-
-              <button
-                onClick={handleSaveAsClick}
-                className="p-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-                title="Lưu thành bản mới (Save As)"
-              >
-                <Copy className="w-4 h-4" />
-                Lưu mới
-              </button>
-
-              <button
-                onClick={handleExitClick}
-                className="p-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-red-900 text-gray-300 hover:text-red-400 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-                title="Quay lại Dashboard"
-              >
-                <Library className="w-4 h-4" />
-                Thư viện
-              </button>
+          {/* Center: Stepper progress tracker (only shown for project flow) */}
+          {isProjectActive && activeModule === 'storyboard' && (
+            <div className="hidden lg:flex items-center gap-3">
+              {STEPS.map((s, i) => {
+                const isCompleted = i < currentIdx;
+                const isActive = i === currentIdx;
+                
+                return (
+                  <React.Fragment key={s.id}>
+                    {i > 0 && (
+                      <div className={`w-6 h-0.5 ${i <= currentIdx ? 'bg-primary/50' : 'bg-border-dark'}`}></div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <div 
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${isActive ? 'bg-primary border-primary text-white font-black animate-pulse' : isCompleted ? 'bg-accent/15 border-accent text-accent' : 'border-border-dark text-gray-500 bg-bg-card'}`}
+                      >
+                        {i + 1}
+                      </div>
+                      <span 
+                        className={`text-[11px] font-medium transition-colors ${isActive ? 'text-white' : isCompleted ? 'text-gray-300' : 'text-gray-500'}`}
+                      >
+                        {s.label}
+                      </span>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
-        </div>
-      </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-6 py-4 bg-bg-dark">
-        <div className="max-w-7xl mx-auto h-full">
-          {renderActiveScreen()}
-        </div>
-      </main>
+          {/* Right: Actions menu inside workflow */}
+          <div className="flex items-center gap-3">
+            {isProjectActive && activeModule === 'storyboard' && (
+              <div className="flex items-center gap-2.5">
+                {showToast && (
+                  <span className="text-[10px] text-green-400 font-semibold flex items-center gap-1 bg-green-950/20 border border-green-500/15 px-2 py-1 rounded-lg animate-in fade-in slide-in-from-right-3 duration-200">
+                    <Check className="w-3 h-3" />
+                    Đã lưu!
+                  </span>
+                )}
+
+                <button
+                  onClick={handleSaveClick}
+                  className="p-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                  title="Lưu cấu hình (Save)"
+                >
+                  <Save className="w-4 h-4" />
+                  Lưu
+                </button>
+
+                <button
+                  onClick={handleSaveAsClick}
+                  className="p-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-gray-500 text-gray-300 hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                  title="Lưu thành bản mới (Save As)"
+                >
+                  <Copy className="w-4 h-4" />
+                  Lưu mới
+                </button>
+
+                <button
+                  onClick={handleExitClick}
+                  className="p-2 bg-bg-card hover:bg-bg-dark border border-border-dark hover:border-red-900 text-gray-300 hover:text-red-400 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                  title="Quay lại Dashboard"
+                >
+                  <Library className="w-4 h-4" />
+                  Thư viện
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto px-6 py-4 bg-bg-dark">
+          <div className="max-w-7xl mx-auto h-full">
+            {renderActiveScreen()}
+          </div>
+        </main>
 
       {/* App Footer */}
       <footer className="bg-bg-panel border-t border-border-dark/60 py-2 px-6 text-center text-[10px] text-gray-600 shrink-0">
@@ -494,6 +458,7 @@ function MainLayout() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

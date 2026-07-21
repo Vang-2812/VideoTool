@@ -131,8 +131,8 @@ declare global {
     vertical_overlap_seconds?: number;
   }
 
-  type TtsMode = 'stable' | 'expressive';
-  type TtsEngine = 'chirp-streaming' | 'chirp-rest' | 'neural2-rest' | 'gemini-rest';
+  type TtsMode = 'stable' | 'expressive' | 'legacy';
+  type TtsEngine = 'chirp-streaming' | 'chirp-rest' | 'neural2-rest' | 'gemini-rest' | 'cloud-rest';
 
   interface TtsJobRequest {
     mode: TtsMode;
@@ -184,6 +184,7 @@ declare global {
     selectSavePath: (defaultPath?: string) => Promise<string | null>;
     readAudioDuration: (filePath: string) => Promise<{ success: boolean; duration?: number; error?: string }>;
     selectAudioFile: () => Promise<{ path: string; name: string } | null>;
+    selectVideoFile: () => Promise<{ path: string; name: string } | null>;
     selectSfxFiles: () => Promise<{ path: string; name: string }[] | null>;
     
     // Project management APIs
@@ -202,6 +203,7 @@ declare global {
     deleteApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; error?: string }>;
     startGoogleOAuth: (clientId: string, clientSecret: string) => Promise<{ success: boolean; error?: string }>;
     synthesizeSpeech: (request: TtsJobRequest) => Promise<TtsJobResult>;
+    getGoogleTtsVoices: () => Promise<any[]>;
     cancelTtsJob: () => Promise<{ success: boolean }>;
     onTtsJobProgress: (callback: (payload: TtsJobProgress) => void) => () => void;
     getGoogleAuthStatus: () => Promise<GoogleAuthStatus>;
@@ -219,7 +221,14 @@ declare global {
       useCloud: boolean;
       transcribeOnly: boolean;
       srtLevel: 'word' | 'sentence';
+      splitExtendedPunctuation?: boolean;
     }) => Promise<{ success: boolean; srtPath?: string; srtContent?: string; matchRate?: number; error?: string }>;
+    mapScriptToSrt: (params: {
+      scriptText: string;
+      srtPath?: string;
+      srtContent?: string;
+      includeMs?: boolean;
+    }) => Promise<{ success: boolean; formattedText?: string; error?: string }>;
     convertToVertical: (params: {
       sourceVideoPath: string;
       outputPath: string;
@@ -243,6 +252,21 @@ declare global {
     validateSrt: (filePath: string) => Promise<{ valid: boolean; errorCount: number; errors: string[] }>;
     cancelVerticalConvert: () => Promise<boolean>;
     getVideoDuration: (filePath: string) => Promise<{ success: boolean; duration?: number; error?: string }>;
+    translateSegments: (params: {
+      segments: { id: number; start: number; end: number; text: string }[];
+      sourceLang: string;
+      targetLang: string;
+      provider: 'gemini' | 'openai' | 'deepseek';
+      apiKey: string;
+      endpointUrl?: string;
+    }) => Promise<{ success: boolean; segments?: { id: number; start: number; end: number; original: string; translated: string }[]; error?: string }>;
+    renderReupVideo: (params: any) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
+    extractVideoSpeech: (params: { videoPath: string; useCloud: boolean }) => Promise<{ success: boolean; segments?: any[]; error?: string }>;
+    generateReupVoiceover: (params: {
+      segments: any[];
+      targetLang: string;
+      voiceName: string;
+    }) => Promise<{ success: boolean; voiceoverSegments?: { path: string; start: number }[]; error?: string }>;
 
     // Whisper APIs
     setupWhisper: () => Promise<{ success: boolean; error?: string }>;
@@ -272,6 +296,7 @@ declare global {
     onRenderProgress: (callback: (payload: RenderProgress) => void) => () => void;
     onRenderComplete: (callback: (payload: RenderResult) => void) => () => void;
     onVerticalConvertProgress: (callback: (payload: { progress: number; eta: string }) => void) => () => void;
+    onReupRenderProgress: (callback: (payload: { progress: number; eta: string }) => void) => () => void;
   }
 
   interface Window {

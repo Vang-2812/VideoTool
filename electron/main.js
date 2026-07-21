@@ -8,6 +8,10 @@ import { spawn, exec } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { alignScriptAndWhisper } from './whisperAligner.js';
 import { groupWordsByScriptSentences } from '../shared/scriptSentenceParser.js';
+import { srtToTimestampText, mapScriptToSrtTimestamps } from '../shared/timestampConverter.js';
+import { translateSegments } from './translators/translatorFactory.js';
+import { buildReupFFmpegArgs } from './reupRenderer.js';
+import { convertSrtToAss } from './verticalSubtitles.js';
 import { parseStoryboardDirectory } from './fileParser.js';
 import { renderStoryboardToVideo, cancelActiveRender } from './videoRenderer.js';
 import { readAudioDuration } from './audioMetadata.js';
@@ -157,6 +161,21 @@ ipcMain.handle('select-audio-file', async () => {
     properties: ['openFile'],
     filters: [{ name: 'Audio Files', extensions: ['mp3', 'wav'] }],
     title: 'Chọn file Audio chính'
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const filePath = result.filePaths[0];
+  return {
+    path: filePath,
+    name: path.basename(filePath)
+  };
+});
+
+ipcMain.handle('select-video-file', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Video Files', extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'flv', 'wmv'] }],
+    title: 'Chọn tệp Video nguồn'
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   const filePath = result.filePaths[0];
@@ -883,6 +902,30 @@ ipcMain.handle('clear-google-credentials', async () => {
   return { success: true };
 });
 
+let cachedGoogleTtsVoices = null;
+
+ipcMain.handle('get-google-tts-voices', async () => {
+  if (cachedGoogleTtsVoices) return cachedGoogleTtsVoices;
+  try {
+    const serializedAuth = await readAnyGoogleAuth();
+    const accessToken = await createRestAccessToken(serializedAuth);
+    const response = await fetch('https://texttospeech.googleapis.com/v1/voices', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error?.message || `HTTP ${response.status}`);
+    }
+    cachedGoogleTtsVoices = data.voices || [];
+    return cachedGoogleTtsVoices;
+  } catch (error) {
+    console.error('Failed to fetch TTS voices:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('get-google-auth-status', async () => {
   try {
     const serializedAuth = await readEncryptedGoogleAuth();
@@ -1085,16 +1128,22 @@ async function runWhisperLogic(audioPath, useCloud) {
       }
 
     } else {
-      const wavPath = audioPath.replace(/\.mp3$/i, '_16k.wav');
+      const wavPath = audioPath.toLowerCase().endsWith('_16k.wav')
+        ? audioPath
+        : (audioPath.toLowerCase().endsWith('.wav')
+            ? audioPath.replace(/\.wav$/i, '_16k.wav')
+            : audioPath.replace(/\.[^/.]+$/, "") + '_16k.wav');
       const jsonPath = wavPath + '.json';
 
-      const convertCmd = `"${ffmpegStatic}" -i "${audioPath}" -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}" -y`;
-      await new Promise((resolve, reject) => {
-        exec(convertCmd, (err) => {
-          if (err) reject(err);
-          else resolve();
+      if (wavPath !== audioPath) {
+        const convertCmd = `"${ffmpegStatic}" -i "${audioPath}" -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}" -y`;
+        await new Promise((resolve, reject) => {
+          exec(convertCmd, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
-      });
+      }
 
       const whisperCmd = `"${WHISPER_EXE}" -m "${MODEL_FILE}" -f "${wavPath}" -oj -ml 1`;
       await new Promise((resolve, reject) => {
@@ -1326,7 +1375,7 @@ function groupWordsIntoSentences(words, maxWords = 8, maxCharLength = 40, maxSil
   return sentences;
 }
 
-ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, useCloud, transcribeOnly, srtLevel }) => {
+ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, useCloud, transcribeOnly, srtLevel, splitExtendedPunctuation }) => {
   try {
     if (!audioPath) {
       return { success: false, error: 'Đường dẫn tệp audio không hợp lệ.' };
@@ -1371,7 +1420,7 @@ ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, 
     // Gộp câu nếu srtLevel là 'sentence'
     if (srtLevel === 'sentence') {
       if (!transcribeOnly && scriptText && scriptText.trim()) {
-        finalCues = groupWordsByScriptSentences(finalCues, scriptText.trim());
+        finalCues = groupWordsByScriptSentences(finalCues, scriptText.trim(), { splitExtendedPunctuation });
       } else {
         finalCues = groupWordsIntoSentences(finalCues);
       }
@@ -1385,21 +1434,45 @@ ipcMain.handle('align-audio-and-script', async (event, { audioPath, scriptText, 
       srtContent += `${cue.word || cue.text}\n\n`;
     });
 
-    // Tạo file SRT tạm
+    // Tạo file SRT & TXT tạm
     const tempDir = app.getPath('temp');
-    const srtPath = path.join(tempDir, `aligned_${Date.now()}.srt`);
+    const timestamp = Date.now();
+    const srtPath = path.join(tempDir, `aligned_${timestamp}.srt`);
     await fs.writeFile(srtPath, srtContent, 'utf-8');
+
+    const txtContent = srtToTimestampText(srtContent);
+    const txtPath = path.join(tempDir, `aligned_${timestamp}.txt`);
+    await fs.writeFile(txtPath, txtContent, 'utf-8');
 
     return {
       success: true,
       srtPath,
       srtContent,
+      txtPath,
+      txtContent,
       matchRate
     };
 
   } catch (err) {
     console.error('Align audio and script error:', err);
     return { success: false, error: err.message || 'Lỗi hệ thống khi căn lề phụ đề.' };
+  }
+});
+
+ipcMain.handle('map-script-to-srt', async (event, { scriptText, srtPath, srtContent, includeMs }) => {
+  try {
+    let content = srtContent;
+    if (!content && srtPath) {
+      content = await fs.readFile(srtPath, 'utf-8');
+    }
+    if (!content || !content.trim()) {
+      return { success: false, error: 'Tệp hoặc nội dung SRT trống hoặc không hợp lệ.' };
+    }
+    const formattedText = mapScriptToSrtTimestamps(scriptText, content, { includeMs });
+    return { success: true, formattedText };
+  } catch (err) {
+    console.error('Map script to SRT error:', err);
+    return { success: false, error: err.message || 'Lỗi khi mapping kịch bản với SRT.' };
   }
 });
 
@@ -1530,5 +1603,245 @@ ipcMain.handle('concat-audio-only', async (event, { tempPaths, finalOutputPath }
   } catch (err) {
     console.error('Concat audio only error:', err);
     return { success: false, error: err.message || 'Lỗi hệ thống khi ghép audio.' };
+  }
+});
+
+ipcMain.handle('translate-segments', async (_, params) => {
+  try {
+    const translatedSegments = await translateSegments(params);
+    return { success: true, segments: translatedSegments };
+  } catch (err) {
+    console.error('Translate segments error:', err);
+    return { success: false, error: err.message || 'Lỗi khi dịch thuật kịch bản.' };
+  }
+});
+
+function segmentsToSrt(segments) {
+  return segments.map((seg, index) => {
+    const startStr = formatSrtTime(seg.start);
+    const endStr = formatSrtTime(seg.end);
+    return `${index + 1}\n${startStr} --> ${endStr}\n${seg.translated || seg.text}\n`;
+  }).join('\n');
+}
+
+ipcMain.handle('extract-video-speech', async (_, { videoPath, useCloud }) => {
+  try {
+    const tempDir = app.getPath('temp');
+    const wavPath = path.join(tempDir, `extract_${Date.now()}_16k.wav`);
+    
+    // Extract audio from video
+    const convertCmd = `"${ffmpegStatic}" -i "${videoPath}" -vn -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}" -y`;
+    await new Promise((resolve, reject) => {
+      exec(convertCmd, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Run Whisper logic
+    const whisperResult = await runWhisperLogic(wavPath, useCloud);
+    
+    // Clean up temp files
+    try {
+      await fs.unlink(wavPath);
+      const jsonPath = wavPath + '.json';
+      await fs.unlink(jsonPath);
+    } catch {}
+
+    if (!whisperResult.success || !whisperResult.words) {
+      return { success: false, error: whisperResult.error || 'Lỗi khi nhận diện giọng nói.' };
+    }
+
+    const grouped = groupWordsIntoSentences(whisperResult.words);
+    const segments = grouped.map((s, idx) => ({
+      id: idx + 1,
+      start: s.start,
+      end: s.end,
+      text: s.text,
+      translated: ''
+    }));
+
+    return { success: true, segments };
+  } catch (err) {
+    console.error('Extract video speech error:', err);
+    return { success: false, error: err.message || 'Lỗi hệ thống khi trích xuất giọng nói.' };
+  }
+});
+
+ipcMain.handle('reup-generate-voiceover', async (_, { segments, targetLang, voiceName }) => {
+  const tempDir = app.getPath('temp');
+  const timestamp = Date.now();
+  const voiceoverSegments = [];
+
+  try {
+    let languageCode = 'vi-VN';
+    if (targetLang === 'en') languageCode = 'en-US';
+    else if (targetLang === 'zh') languageCode = 'cmn-CN';
+    else if (targetLang === 'ja') languageCode = 'ja-JP';
+    else if (targetLang === 'ko') languageCode = 'ko-KR';
+
+    const orchestrator = initializeTtsJobOrchestrator();
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!seg.translated) continue;
+
+      const segOutputPath = path.join(tempDir, `reup_tts_${timestamp}_${i}.mp3`);
+      const ttsResult = await orchestrator.run({
+        mode: 'stable',
+        text: seg.translated,
+        languageCode,
+        speaker: voiceName || 'Aoede',
+        voiceName: voiceName || 'Aoede',
+        speakingRate: 1,
+        outputPath: segOutputPath,
+        outputFormat: 'mp3'
+      }, {
+        signal: new AbortController().signal
+      });
+
+      if (ttsResult.success) {
+        let duration = 2.0;
+        try {
+          duration = await readAudioDuration(segOutputPath);
+        } catch (e) {
+          console.warn(`Could not read audio duration for segment ${i}:`, e.message);
+        }
+
+        let start = seg.start;
+        if (voiceoverSegments.length > 0) {
+          const lastSeg = voiceoverSegments[voiceoverSegments.length - 1];
+          const lastEndTime = lastSeg.start + lastSeg.duration;
+          if (start < lastEndTime + 0.1) {
+            start = lastEndTime + 0.1;
+          }
+        }
+
+        voiceoverSegments.push({
+          path: segOutputPath,
+          start: start,
+          duration: duration
+        });
+      } else {
+        console.error(`Failed to generate TTS for segment ${i}:`, ttsResult.error);
+      }
+    }
+
+    return { success: true, voiceoverSegments };
+  } catch (err) {
+    console.error('Reup generate voiceover error:', err);
+    return { success: false, error: err.message || 'Lỗi hệ thống khi tạo giọng đọc lồng tiếng.' };
+  }
+});
+
+ipcMain.handle('render-reup-video', async (event, params) => {
+  let tempSubPath = null;
+  let tempAssPath = null;
+  try {
+    const finalParams = { ...params };
+
+    // Get video duration for progress tracking
+    let totalDuration = 0;
+    try {
+      totalDuration = await getVideoDuration(params.videoPath);
+    } catch (e) {
+      console.warn('Failed to read video duration for progress tracking:', e);
+    }
+
+    if (params.showSubtitles && params.segments && params.segments.length > 0) {
+      const tempDir = app.getPath('temp');
+      const timestamp = Date.now();
+      tempSubPath = path.join(tempDir, `reup_sub_${timestamp}.srt`);
+      
+      const srtContent = segmentsToSrt(params.segments);
+      await fs.writeFile(tempSubPath, srtContent, 'utf-8');
+      
+      tempAssPath = tempSubPath.replace(/\.srt$/i, '.ass');
+      let marginV = 100;
+      if (params.subtitlePos === 'center') {
+        marginV = 960;
+      } else if (params.subtitlePos === 'top') {
+        marginV = 1700;
+      }
+
+      await convertSrtToAss({
+        srtPath: tempSubPath,
+        assPath: tempAssPath,
+        subtitleFontSize: params.subtitleFontSize || 54,
+        subtitleColor: '#FFFF00',
+        subtitleMarginV: marginV
+      });
+
+      finalParams.subtitleAssPath = tempAssPath;
+    }
+
+    const args = buildReupFFmpegArgs(finalParams);
+    await new Promise((resolve, reject) => {
+      const ffmpegProcess = spawn(ffmpegStatic, args);
+      let buffer = '';
+
+      ffmpegProcess.stderr.on('data', (data) => {
+        const str = data.toString();
+        buffer += str;
+        const lines = buffer.split('\r');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const timeMatch = line.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+          if (timeMatch && totalDuration > 0) {
+            const hh = parseInt(timeMatch[1], 10);
+            const mm = parseInt(timeMatch[2], 10);
+            const ss = parseInt(timeMatch[3], 10);
+            const ms = parseInt(timeMatch[4], 10);
+            const currentTime = hh * 3600 + mm * 60 + ss + ms / 100;
+            const progress = Math.min(99, Math.floor((currentTime / totalDuration) * 100));
+
+            const speedMatch = line.match(/speed=\s*([\d\.]+)x/);
+            let eta = '--:--';
+            if (speedMatch && parseFloat(speedMatch[1]) > 0) {
+              const speed = parseFloat(speedMatch[1]);
+              const secondsRemaining = (totalDuration - currentTime) / speed;
+              if (secondsRemaining > 0) {
+                const m = Math.floor(secondsRemaining / 60);
+                const s = Math.floor(secondsRemaining % 60);
+                eta = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+              } else {
+                eta = '00:00';
+              }
+            }
+
+            event.sender.send('reup-render-progress', { progress, eta });
+          }
+        }
+      });
+
+      ffmpegProcess.on('close', (code) => {
+        if (code === 0) {
+          event.sender.send('reup-render-progress', { progress: 100, eta: '00:00' });
+          resolve();
+        } else {
+          reject(new Error(`FFmpeg reup render exited with code ${code}`));
+        }
+      });
+      ffmpegProcess.on('error', reject);
+    });
+
+    return { success: true, outputPath: params.outputPath };
+  } catch (err) {
+    console.error('Render reup video error:', err);
+    return { success: false, error: err.message || 'Lỗi hệ thống khi render video reup.' };
+  } finally {
+    if (tempSubPath) {
+      try { await fs.unlink(tempSubPath); } catch {}
+    }
+    if (tempAssPath) {
+      try { await fs.unlink(tempAssPath); } catch {}
+    }
+    if (params.voiceoverSegments && params.voiceoverSegments.length > 0) {
+      for (const seg of params.voiceoverSegments) {
+        if (seg.path) {
+          try { await fs.unlink(seg.path); } catch {}
+        }
+      }
+    }
   }
 });

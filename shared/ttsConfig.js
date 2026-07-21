@@ -48,7 +48,7 @@ export function resolveNeural2Voice(languageCode, speaker) {
 
 export function validateTtsJobRequest(request) {
   if (!request?.text?.trim()) return { ok: false, error: 'Script is empty.' };
-  if (!['stable', 'expressive'].includes(request.mode)) {
+  if (!['stable', 'expressive', 'legacy'].includes(request.mode)) {
     return { ok: false, error: 'Invalid TTS mode.' };
   }
   if (!request.languageCode?.trim()) {

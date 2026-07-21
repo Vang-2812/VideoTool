@@ -83,6 +83,10 @@ export function createTtsJobOrchestrator(deps) {
           engine: rawRequest.mode === 'expressive' ? 'gemini-rest' : 'chirp-streaming'
         });
 
+        if (rawRequest.mode === 'legacy') {
+          return await runAttempt('cloud-rest', rawRequest, context);
+        }
+
         if (rawRequest.mode === 'expressive') {
           return await runAttempt('gemini-rest', rawRequest, context);
         }

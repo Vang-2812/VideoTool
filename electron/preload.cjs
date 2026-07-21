@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFileFromTemp: (params) => ipcRenderer.invoke('save-file-from-temp', params),
   readAudioDuration: (filePath) => ipcRenderer.invoke('read-audio-duration', filePath),
   selectAudioFile: () => ipcRenderer.invoke('select-audio-file'),
+  selectVideoFile: () => ipcRenderer.invoke('select-video-file'),
   selectSfxFiles: () => ipcRenderer.invoke('select-sfx-files'),
   
   // Project management APIs
@@ -34,6 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('tts-job-progress', listener);
     return () => ipcRenderer.removeListener('tts-job-progress', listener);
   },
+  getGoogleTtsVoices: () => ipcRenderer.invoke('get-google-tts-voices'),
   selectGoogleCredentialsFile: () => ipcRenderer.invoke('select-google-credentials-file'),
   getGoogleCredentialsStatus: () => ipcRenderer.invoke('get-google-credentials-status'),
   validateGoogleCredentials: () => ipcRenderer.invoke('validate-google-credentials'),
@@ -43,10 +45,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   concatAndAlign: (params) => ipcRenderer.invoke('concat-and-align', params),
   concatAudioOnly: (params) => ipcRenderer.invoke('concat-audio-only', params),
   alignAudioAndScript: (params) => ipcRenderer.invoke('align-audio-and-script', params),
+  mapScriptToSrt: (params) => ipcRenderer.invoke('map-script-to-srt', params),
   convertToVertical: (params) => ipcRenderer.invoke('convert-to-vertical', params),
   validateSrt: (filePath) => ipcRenderer.invoke('validate-srt', filePath),
   cancelVerticalConvert: () => ipcRenderer.invoke('cancel-vertical-convert'),
   getVideoDuration: (filePath) => ipcRenderer.invoke('get-video-duration', filePath),
+  translateSegments: (params) => ipcRenderer.invoke('translate-segments', params),
+  renderReupVideo: (params) => ipcRenderer.invoke('render-reup-video', params),
+  extractVideoSpeech: (params) => ipcRenderer.invoke('extract-video-speech', params),
+  generateReupVoiceover: (params) => ipcRenderer.invoke('reup-generate-voiceover', params),
   
   setupWhisper: () => ipcRenderer.invoke('setup-whisper'),
   checkWhisperSetup: () => ipcRenderer.invoke('check-whisper-setup'),
@@ -90,5 +97,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, value) => callback(value);
     ipcRenderer.on('vertical-convert-progress', listener);
     return () => ipcRenderer.removeListener('vertical-convert-progress', listener);
+  },
+  onReupRenderProgress: (callback) => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('reup-render-progress', listener);
+    return () => ipcRenderer.removeListener('reup-render-progress', listener);
   }
 });

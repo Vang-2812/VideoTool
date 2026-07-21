@@ -34,3 +34,15 @@ test('groupWordsByScriptSentences maps aligned word timestamps to script sentenc
   assert.equal(result[1].start, 1.5);
   assert.equal(result[1].end, 2.8);
 });
+
+test('parseScriptSentences splits by extended punctuation when enabled', () => {
+  const script = 'Xin chào, tôi là AI! "Đây là ví dụ," anh nói.';
+  const sentences = parseScriptSentences(script, { splitExtendedPunctuation: true });
+
+  assert.equal(sentences.length, 4);
+  assert.equal(sentences[0].text, 'Xin chào,');
+  assert.equal(sentences[1].text, 'tôi là AI!');
+  assert.equal(sentences[2].text, 'Đây là ví dụ,');
+  assert.equal(sentences[3].text, 'anh nói.');
+});
+
