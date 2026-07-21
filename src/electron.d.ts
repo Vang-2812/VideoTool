@@ -131,8 +131,8 @@ declare global {
     vertical_overlap_seconds?: number;
   }
 
-  type TtsMode = 'stable' | 'expressive';
-  type TtsEngine = 'chirp-streaming' | 'chirp-rest' | 'neural2-rest' | 'gemini-rest';
+  type TtsMode = 'stable' | 'expressive' | 'legacy';
+  type TtsEngine = 'chirp-streaming' | 'chirp-rest' | 'neural2-rest' | 'gemini-rest' | 'cloud-rest';
 
   interface TtsJobRequest {
     mode: TtsMode;
@@ -203,6 +203,7 @@ declare global {
     deleteApiKey: (service: 'google' | 'openai') => Promise<{ success: boolean; error?: string }>;
     startGoogleOAuth: (clientId: string, clientSecret: string) => Promise<{ success: boolean; error?: string }>;
     synthesizeSpeech: (request: TtsJobRequest) => Promise<TtsJobResult>;
+    getGoogleTtsVoices: () => Promise<any[]>;
     cancelTtsJob: () => Promise<{ success: boolean }>;
     onTtsJobProgress: (callback: (payload: TtsJobProgress) => void) => () => void;
     getGoogleAuthStatus: () => Promise<GoogleAuthStatus>;

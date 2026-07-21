@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('tts-job-progress', listener);
     return () => ipcRenderer.removeListener('tts-job-progress', listener);
   },
+  getGoogleTtsVoices: () => ipcRenderer.invoke('get-google-tts-voices'),
   selectGoogleCredentialsFile: () => ipcRenderer.invoke('select-google-credentials-file'),
   getGoogleCredentialsStatus: () => ipcRenderer.invoke('get-google-credentials-status'),
   validateGoogleCredentials: () => ipcRenderer.invoke('validate-google-credentials'),

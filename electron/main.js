@@ -902,6 +902,30 @@ ipcMain.handle('clear-google-credentials', async () => {
   return { success: true };
 });
 
+let cachedGoogleTtsVoices = null;
+
+ipcMain.handle('get-google-tts-voices', async () => {
+  if (cachedGoogleTtsVoices) return cachedGoogleTtsVoices;
+  try {
+    const serializedAuth = await readAnyGoogleAuth();
+    const accessToken = await createRestAccessToken(serializedAuth);
+    const response = await fetch('https://texttospeech.googleapis.com/v1/voices', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error?.message || `HTTP ${response.status}`);
+    }
+    cachedGoogleTtsVoices = data.voices || [];
+    return cachedGoogleTtsVoices;
+  } catch (error) {
+    console.error('Failed to fetch TTS voices:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('get-google-auth-status', async () => {
   try {
     const serializedAuth = await readEncryptedGoogleAuth();
