@@ -57,6 +57,20 @@ test('accepts a complete Stable job request', () => {
   }), { ok: true });
 });
 
+test('accepts a complete Legacy job request', () => {
+  const result = validateTtsJobRequest({
+    mode: 'legacy',
+    text: 'Hello',
+    languageCode: 'en-US',
+    speaker: 'A',
+    voiceName: 'en-US-Neural2-A',
+    outputPath: 'out.mp3',
+    outputFormat: 'mp3',
+    speakingRate: 1
+  });
+  assert.equal(result.ok, true);
+});
+
 test('rejects an incomplete Expressive IPC request before calling Google', () => {
   const result = validateTtsJobRequest({
     mode: 'expressive',
