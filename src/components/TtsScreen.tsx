@@ -178,6 +178,20 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   const [speakingRate, setSpeakingRate] = useState(initial.speakingRate);
   const [outputFormat, setOutputFormat] = useState<'wav' | 'mp3'>(initial.outputFormat);
 
+  const [legacyVoices, setLegacyVoices] = useState<any[]>([]);
+  const [legacyEngine, setLegacyEngine] = useState('Neural2');
+  const [isFetchingVoices, setIsFetchingVoices] = useState(false);
+
+  useEffect(() => {
+    if (mode === 'legacy' && legacyVoices.length === 0) {
+      setIsFetchingVoices(true);
+      window.electronAPI.getGoogleTtsVoices()
+        .then(setLegacyVoices)
+        .catch(err => alert('Failed to fetch voices: ' + err.message))
+        .finally(() => setIsFetchingVoices(false));
+    }
+  }, [mode]);
+
   const [profiles, setProfiles] = useState<TtsProfile[]>(() => {
     const saved = localStorage.getItem('tts_profiles');
     if (saved) {
@@ -495,6 +509,14 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
   const maleVoices = activeLanguage?.voices.filter(v => v.gender === 'male') || [];
   const femaleVoices = activeLanguage?.voices.filter(v => v.gender === 'female') || [];
 
+  const availableLegacyVoices = React.useMemo(() => {
+    if (mode !== 'legacy') return [];
+    return legacyVoices.filter(v => 
+      v.languageCodes.includes(langCode) && 
+      v.name.includes(legacyEngine)
+    );
+  }, [legacyVoices, langCode, legacyEngine, mode]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 h-full items-start">
 
@@ -551,7 +573,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
 
         {/* Stable is the default; Gemini remains available as experimental. */}
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => setMode('stable')}
               aria-pressed={mode === 'stable'}
@@ -564,7 +586,14 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
               aria-pressed={mode === 'expressive'}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors ${mode === 'expressive' ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300' : 'bg-bg-dark border-border-dark text-gray-500 hover:text-gray-300'}`}
             >
-              Expressive / Experimental
+              Expressive
+            </button>
+            <button
+              onClick={() => setMode('legacy')}
+              aria-pressed={mode === 'legacy'}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors ${mode === 'legacy' ? 'bg-blue-500/15 border-blue-500/40 text-blue-300' : 'bg-bg-dark border-border-dark text-gray-500 hover:text-gray-300'}`}
+            >
+              Legacy
             </button>
           </div>
 
@@ -673,7 +702,7 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
         )}
 
         {/* Dropdowns row */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 ${mode === 'legacy' ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-4`}>
           <div className="space-y-1">
             <span className="text-[10px] text-gray-500">Ngôn ngữ</span>
             <select
@@ -687,28 +716,54 @@ export default function TtsScreen({ onNavigateToAligner }: TtsScreenProps) {
             </select>
           </div>
 
-          <div className="space-y-1">
+          <div className={`space-y-1 ${mode === 'legacy' ? 'sm:col-span-2' : ''}`}>
             <span className="text-[10px] text-gray-500">Giọng đọc</span>
-            <select
-              value={voiceName}
-              onChange={(e) => setVoiceName(e.target.value)}
-              className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
-            >
-              {maleVoices.length > 0 && (
-                <optgroup label="👨 Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
-                  {maleVoices.map(v => (
-                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👨 {v.label}</option>
+            {mode === 'legacy' ? (
+              <div className="flex gap-2">
+                <select
+                  value={legacyEngine}
+                  onChange={(e) => setLegacyEngine(e.target.value)}
+                  className="flex-1 bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                >
+                  <option value="Neural2">Neural2</option>
+                  <option value="Standard">Standard</option>
+                  <option value="WaveNet">WaveNet</option>
+                  <option value="Studio">Studio</option>
+                  <option value="Polyglot">Polyglot</option>
+                </select>
+                <select
+                  value={voiceName}
+                  onChange={(e) => setVoiceName(e.target.value)}
+                  className="flex-1 bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                >
+                  {isFetchingVoices ? <option>Loading...</option> : null}
+                  {availableLegacyVoices.map(v => (
+                    <option key={v.name} value={v.name}>{v.name} ({v.ssmlGender})</option>
                   ))}
-                </optgroup>
-              )}
-              {femaleVoices.length > 0 && (
-                <optgroup label="👩 Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
-                  {femaleVoices.map(v => (
-                    <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👩 {v.label}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+                </select>
+              </div>
+            ) : (
+              <select
+                value={voiceName}
+                onChange={(e) => setVoiceName(e.target.value)}
+                className="w-full bg-bg-dark border border-border-dark text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+              >
+                {maleVoices.length > 0 && (
+                  <optgroup label="👨 Giọng Nam / Male Voices" className="text-gray-400 bg-bg-panel font-bold">
+                    {maleVoices.map(v => (
+                      <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👨 {v.label}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {femaleVoices.length > 0 && (
+                  <optgroup label="👩 Giọng Nữ / Female Voices" className="text-gray-400 bg-bg-panel font-bold">
+                    {femaleVoices.map(v => (
+                      <option key={v.id} value={v.id} className="text-white bg-bg-dark font-normal">👩 {v.label}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            )}
           </div>
 
           <div className="space-y-1">
